@@ -11,7 +11,11 @@ def test_book_creation(tmp_path):
 
     response = client.post(
         "/livros",
-        json={"titulo": "Dom Casmurro", "autor": "Machado de Assis", "categoria": "Classico"},
+        json={
+            "titulo": "Dom Casmurro",
+            "autor": "Machado de Assis",
+            "categoria": "Classico",
+        },
     )
 
     assert response.status_code == 201
