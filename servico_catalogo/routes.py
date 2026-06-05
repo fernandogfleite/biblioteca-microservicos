@@ -1,0 +1,55 @@
+"""HTTP routes for the catalog service."""
+
+from __future__ import annotations
+
+from typing import Any, Dict
+
+from flask import Blueprint, current_app, jsonify, request
+
+from .services import create_book, get_book, list_books
+
+catalog_bp = Blueprint("catalogo", __name__)
+
+
+def json_response(
+    *, success: bool, data: Any | None = None, message: str | None = None, status: int = 200
+) -> tuple[Dict[str, Any], int]:
+    payload: Dict[str, Any] = {"success": success}
+    if success:
+        payload["data"] = data
+    else:
+        payload["message"] = message
+    return payload, status
+
+
+@catalog_bp.get("/livros")
+def listar_livros():
+    db_path = current_app.config["DB_PATH"]
+    books = [book.to_dict() for book in list_books(db_path)]
+    return json_response(success=True, data=books)
+
+
+@catalog_bp.get("/livros/<book_id>")
+def buscar_livro(book_id: str):
+    db_path = current_app.config["DB_PATH"]
+    book = get_book(db_path, book_id)
+    if not book:
+        return json_response(success=False, message="Livro nao encontrado.", status=404)
+    return json_response(success=True, data=book.to_dict())
+
+
+@catalog_bp.post("/livros")
+def criar_livro():
+    if not request.is_json:
+        return json_response(
+            success=False, message="Corpo da requisicao deve ser JSON.", status=400
+        )
+
+    payload = request.get_json(silent=True) or {}
+    db_path = current_app.config["DB_PATH"]
+    try:
+        book = create_book(db_path, payload)
+    except ValueError as exc:
+        return json_response(success=False, message=str(exc), status=400)
+
+    return json_response(success=True, data=book.to_dict(), status=201)
