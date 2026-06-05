@@ -10,13 +10,26 @@ from flask import Blueprint, request
 
 gateway_bp = Blueprint("gateway", __name__)
 
-CATALOGO_URL = os.getenv("CATALOGO_SERVICE_URL", "http://localhost:5001")
-EMPRESTIMOS_URL = os.getenv("EMPRESTIMOS_SERVICE_URL", "http://localhost:5002")
-RECOMENDACOES_URL = os.getenv("RECOMENDACOES_SERVICE_URL", "http://localhost:5003")
+CATALOGO_URL = os.getenv(
+    "CATALOG_SERVICE_URL",
+    os.getenv("CATALOGO_SERVICE_URL", "http://localhost:5001"),
+)
+EMPRESTIMOS_URL = os.getenv(
+    "LOANS_SERVICE_URL",
+    os.getenv("EMPRESTIMOS_SERVICE_URL", "http://localhost:5002"),
+)
+RECOMENDACOES_URL = os.getenv(
+    "RECOMMENDATION_SERVICE_URL",
+    os.getenv("RECOMENDACOES_SERVICE_URL", "http://localhost:5003"),
+)
 
 
 def json_response(
-    *, success: bool, data: Any | None = None, message: str | None = None, status: int = 200
+    *,
+    success: bool,
+    data: Any | None = None,
+    message: str | None = None,
+    status: int = 200,
 ) -> tuple[Dict[str, Any], int]:
     payload: Dict[str, Any] = {"success": success}
     if success:

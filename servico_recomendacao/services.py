@@ -19,9 +19,14 @@ def fetch_catalog_books(base_url: str) -> List[Dict[str, Any]]:
     return payload.get("data", [])
 
 
-def get_recommendations(categoria: str, base_url: str | None = None) -> List[Dict[str, Any]]:
+def get_recommendations(
+    categoria: str, base_url: str | None = None
+) -> List[Dict[str, Any]]:
     """Filter catalog books by category."""
-    catalog_url = base_url or os.getenv("CATALOGO_BASE_URL", "http://localhost:5001")
+    catalog_url = base_url or os.getenv(
+        "CATALOG_SERVICE_URL",
+        os.getenv("CATALOGO_BASE_URL", "http://localhost:5001"),
+    )
     books = fetch_catalog_books(catalog_url)
     categoria_normalizada = categoria.strip().lower()
     return [

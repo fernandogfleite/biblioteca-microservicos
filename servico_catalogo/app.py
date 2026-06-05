@@ -12,6 +12,19 @@ from .routes import catalog_bp
 from .services import init_db
 
 
+def _get_cors_origins() -> list[str] | str:
+    raw = os.getenv("CORS_ORIGINS", "").strip()
+    if raw.lower() in {"*", "all"}:
+        return "*"
+    if raw:
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    return [
+        "http://localhost:5000",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
+
+
 def create_app(config: Dict[str, Any] | None = None) -> Flask:
     """Application factory for the catalog service."""
     app = Flask(__name__)
@@ -23,7 +36,7 @@ def create_app(config: Dict[str, Any] | None = None) -> Flask:
     if config:
         app.config.update(config)
 
-    CORS(app)
+    CORS(app, origins=_get_cors_origins())
     init_db(app.config["DB_PATH"])
     app.register_blueprint(catalog_bp)
     return app
@@ -33,4 +46,5 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    port = int(os.getenv("PORT", "5001"))
+    app.run(host="0.0.0.0", port=port, debug=False)
