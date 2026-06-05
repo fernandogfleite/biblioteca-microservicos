@@ -1,4 +1,5 @@
-const API_BASE = "http://localhost:5000";
+const apiMeta = document.querySelector('meta[name="api-base"]');
+const API_BASE = apiMeta?.content || "http://localhost:5000";
 const responsesContainer = document.getElementById("respostas");
 
 const appendResponse = (title, payload) => {
