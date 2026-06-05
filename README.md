@@ -10,6 +10,15 @@ Sistema simples de gerenciamento de biblioteca online usando Microservicos com F
 4. **Servico de Recomendacao (5003)**: filtragem de livros por categoria com base no catalogo.
 5. **Frontend**: aplicacao SPA simples em HTML, CSS e JavaScript.
 
+```mermaid
+graph TD
+  UI[Frontend] -->|HTTP| GW[API Gateway]
+  GW -->|HTTP| CAT[Servico de Catalogo]
+  GW -->|HTTP| LOAN[Servico de Emprestimos]
+  GW -->|HTTP| REC[Servico de Recomendacao]
+  REC -->|HTTP| CAT
+```
+
 ## Estrutura de Pastas
 
 ```
@@ -51,6 +60,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Crie um arquivo `.env` baseado em `.env.example` para configurar URLs e CORS.
+
 ## Executando os Servicos
 
 Abra terminais separados e execute:
@@ -67,6 +78,20 @@ O frontend pode ser aberto diretamente no navegador:
 ```
 frontend/index.html
 ```
+
+Para apontar o frontend para outro host, ajuste o `meta[name="api-base"]` em [frontend/index.html](frontend/index.html).
+
+## Deploy (Render Free)
+
+O repositorio inclui um blueprint em [render.yaml](render.yaml) com quatro servicos independentes.
+Passos resumidos:
+
+1. Suba o repositorio no GitHub.
+2. Crie um Blueprint no Render usando o `render.yaml`.
+3. Confirme as variaveis de ambiente, principalmente as URLs entre servicos e `CORS_ORIGINS`.
+4. Atualize o `api-base` do frontend com a URL publica do gateway.
+
+Consulte detalhes em [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Formato de Resposta
 

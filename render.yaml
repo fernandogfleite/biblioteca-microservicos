@@ -1,0 +1,64 @@
+services:
+  - type: web
+    name: api-gateway
+    env: python
+    plan: free
+    rootDir: api_gateway
+    buildCommand: pip install -r ../requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: CATALOG_SERVICE_URL
+        value: https://catalog-service.onrender.com
+      - key: LOANS_SERVICE_URL
+        value: https://loans-service.onrender.com
+      - key: RECOMMENDATION_SERVICE_URL
+        value: https://recommendation-service.onrender.com
+      - key: CORS_ORIGINS
+        value: https://frontend.onrender.com
+
+  - type: web
+    name: catalog-service
+    env: python
+    plan: free
+    rootDir: servico_catalogo
+    buildCommand: pip install -r ../requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: CATALOGO_DB_PATH
+        value: /tmp/catalogo.db
+      - key: CORS_ORIGINS
+        value: https://api-gateway.onrender.com,https://frontend.onrender.com
+
+  - type: web
+    name: loans-service
+    env: python
+    plan: free
+    rootDir: servico_emprestimos
+    buildCommand: pip install -r ../requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: EMPRESTIMOS_DB_PATH
+        value: /tmp/emprestimos.db
+      - key: CORS_ORIGINS
+        value: https://api-gateway.onrender.com,https://frontend.onrender.com
+
+  - type: web
+    name: recommendation-service
+    env: python
+    plan: free
+    rootDir: servico_recomendacao
+    buildCommand: pip install -r ../requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: CATALOG_SERVICE_URL
+        value: https://catalog-service.onrender.com
+      - key: CORS_ORIGINS
+        value: https://api-gateway.onrender.com,https://frontend.onrender.com
