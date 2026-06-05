@@ -5,7 +5,7 @@ services:
     plan: free
     rootDir: api_gateway
     buildCommand: pip install -r ../requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn --chdir .. api_gateway.app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.3
@@ -24,7 +24,7 @@ services:
     plan: free
     rootDir: servico_catalogo
     buildCommand: pip install -r ../requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn --chdir .. servico_catalogo.app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.3
@@ -39,7 +39,7 @@ services:
     plan: free
     rootDir: servico_emprestimos
     buildCommand: pip install -r ../requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn --chdir .. servico_emprestimos.app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.3
@@ -54,7 +54,7 @@ services:
     plan: free
     rootDir: servico_recomendacao
     buildCommand: pip install -r ../requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn --chdir .. servico_recomendacao.app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.3

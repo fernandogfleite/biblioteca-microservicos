@@ -41,6 +41,15 @@ graph TD
    - Open [frontend/index.html](frontend/index.html) and set `meta[name="api-base"]` to the Gateway URL.
 5. In Render, confirm the environment variables (especially URLs and CORS origins).
 
+### Render start commands
+
+Use package-qualified Gunicorn targets so Python keeps package context for relative imports:
+
+- `gunicorn --chdir .. api_gateway.app:app`
+- `gunicorn --chdir .. servico_catalogo.app:app`
+- `gunicorn --chdir .. servico_emprestimos.app:app`
+- `gunicorn --chdir .. servico_recomendacao.app:app`
+
 ## Environment Variables
 
 Common:
