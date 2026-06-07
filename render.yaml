@@ -10,7 +10,7 @@ services:
       - key: NODE_VERSION
         value: 22.11.0
       - key: API_GATEWAY_URL
-        value: https://api-gateway.onrender.com
+        value: https://api-gateway-6t3z.onrender.com
 
   - type: web
     name: api-gateway
@@ -23,13 +23,13 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.3
       - key: CATALOG_SERVICE_URL
-        value: https://catalog-service.onrender.com
+        value: https://catalog-service-6auf.onrender.com
       - key: LOANS_SERVICE_URL
-        value: https://loans-service.onrender.com
+        value: https://loans-service-7sne.onrender.com
       - key: RECOMMENDATION_SERVICE_URL
-        value: https://recommendation-service.onrender.com
+        value: https://recommendation-service-3fdd.onrender.com
       - key: CORS_ORIGINS
-        value: https://frontend-next.onrender.com
+        value: https://frontend-next-zst9.onrender.com
 
   - type: web
     name: catalog-service
@@ -44,7 +44,7 @@ services:
       - key: CATALOGO_DB_PATH
         value: /tmp/catalogo.db
       - key: CORS_ORIGINS
-        value: https://api-gateway.onrender.com,https://frontend-next.onrender.com
+        value: https://api-gateway-6t3z.onrender.com,https://frontend-next-zst9.onrender.com
 
   - type: web
     name: loans-service
@@ -59,7 +59,7 @@ services:
       - key: EMPRESTIMOS_DB_PATH
         value: /tmp/emprestimos.db
       - key: CORS_ORIGINS
-        value: https://api-gateway.onrender.com,https://frontend-next.onrender.com
+        value: https://api-gateway-6t3z.onrender.com,https://frontend-next-zst9.onrender.com
 
   - type: web
     name: recommendation-service
@@ -74,4 +74,4 @@ services:
       - key: CATALOG_SERVICE_URL
         value: https://catalog-service.onrender.com
       - key: CORS_ORIGINS
-        value: https://api-gateway.onrender.com,https://frontend-next.onrender.com
+        value: https://api-gateway-6t3z.onrender.com,https://frontend-next-zst9.onrender.com
