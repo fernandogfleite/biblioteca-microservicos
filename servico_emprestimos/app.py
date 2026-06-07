@@ -12,6 +12,12 @@ from .routes import loan_bp
 from .services import init_db
 
 
+def _log_startup(service_name: str, default_port: int) -> None:
+    """Print startup message with the configured port."""
+    port = os.getenv("PORT", str(default_port))
+    print(f"[startup] {service_name} rodando na porta {port}", flush=True)
+
+
 def _get_cors_origins() -> list[str] | str:
     raw = os.getenv("CORS_ORIGINS", "").strip()
     if raw.lower() in {"*", "all"}:
@@ -39,6 +45,7 @@ def create_app(config: Dict[str, Any] | None = None) -> Flask:
     CORS(app, origins=_get_cors_origins())
     init_db(app.config["DB_PATH"])
     app.register_blueprint(loan_bp)
+    _log_startup("Servico de Emprestimos", 5002)
     return app
 
 
