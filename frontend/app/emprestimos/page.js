@@ -208,7 +208,7 @@ export default function EmprestimosPage() {
                 ) : (
                   availableBooks.map((book) => (
                     <option key={book.id} value={book.id}>
-                      {book.titulo} ({book.id})
+                      {book.titulo}
                     </option>
                   ))
                 )}
@@ -240,7 +240,7 @@ export default function EmprestimosPage() {
                 ) : (
                   openLoans.map((loan) => (
                     <option key={loan.id} value={loan.id}>
-                      {loan.nome_usuario} - {loan.livro_id}
+                      {loan.nome_usuario} - {loan.livro_titulo || "Livro nao identificado"}
                     </option>
                   ))
                 )}
@@ -282,7 +282,7 @@ export default function EmprestimosPage() {
               loans.map((loan) => (
                 <article className="list-item" key={loan.id || `${loan.livro_id}-${loan.nome_usuario}`}>
                   <h3>{loan.nome_usuario || "Usuario nao informado"}</h3>
-                  <p>Livro: {loan.livro_id || "-"}</p>
+                  <p>Livro: {loan.livro_titulo || "Livro nao identificado"}</p>
                   <span className="pill">{loan.status || "status indisponivel"}</span>
                 </article>
               ))
