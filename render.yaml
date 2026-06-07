@@ -1,5 +1,18 @@
 services:
   - type: web
+    name: frontend-next
+    env: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.11.0
+      - key: API_GATEWAY_URL
+        value: https://api-gateway.onrender.com
+
+  - type: web
     name: api-gateway
     env: python
     plan: free
@@ -16,7 +29,7 @@ services:
       - key: RECOMMENDATION_SERVICE_URL
         value: https://recommendation-service.onrender.com
       - key: CORS_ORIGINS
-        value: https://frontend.onrender.com
+        value: https://frontend-next.onrender.com
 
   - type: web
     name: catalog-service
@@ -31,7 +44,7 @@ services:
       - key: CATALOGO_DB_PATH
         value: /tmp/catalogo.db
       - key: CORS_ORIGINS
-        value: https://api-gateway.onrender.com,https://frontend.onrender.com
+        value: https://api-gateway.onrender.com,https://frontend-next.onrender.com
 
   - type: web
     name: loans-service
@@ -46,7 +59,7 @@ services:
       - key: EMPRESTIMOS_DB_PATH
         value: /tmp/emprestimos.db
       - key: CORS_ORIGINS
-        value: https://api-gateway.onrender.com,https://frontend.onrender.com
+        value: https://api-gateway.onrender.com,https://frontend-next.onrender.com
 
   - type: web
     name: recommendation-service
@@ -61,4 +74,4 @@ services:
       - key: CATALOG_SERVICE_URL
         value: https://catalog-service.onrender.com
       - key: CORS_ORIGINS
-        value: https://api-gateway.onrender.com,https://frontend.onrender.com
+        value: https://api-gateway.onrender.com,https://frontend-next.onrender.com

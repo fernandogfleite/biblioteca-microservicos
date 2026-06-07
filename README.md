@@ -8,7 +8,7 @@ Sistema simples de gerenciamento de biblioteca online usando Microservicos com F
 2. **Servico de Catalogo (5001)**: cadastro e consulta de livros.
 3. **Servico de Emprestimos (5002)**: registro e devolucao de emprestimos.
 4. **Servico de Recomendacao (5003)**: filtragem de livros por categoria com base no catalogo.
-5. **Frontend**: aplicacao SPA simples em HTML, CSS e JavaScript.
+5. **Frontend**: aplicacao Next.js para interface web robusta e integracao via API Gateway.
 
 ```mermaid
 graph TD
@@ -41,9 +41,10 @@ biblioteca-microservicos/
 │   ├── services.py
 │   └── routes.py
 ├── frontend/
-│   ├── index.html
-│   ├── style.css
-│   └── script.js
+│   ├── app/
+│   ├── lib/
+│   ├── package.json
+│   └── .env.example
 ├── tests/
 ├── requirements.txt
 ├── README.md
@@ -73,13 +74,15 @@ python -m servico_recomendacao.app
 python -m api_gateway.app
 ```
 
-O frontend pode ser aberto diretamente no navegador:
+Em outro terminal, execute o frontend Next.js:
 
 ```
-frontend/index.html
+cd frontend
+npm install
+npm run dev
 ```
 
-Para apontar o frontend para outro host, ajuste o `meta[name="api-base"]` em [frontend/index.html](frontend/index.html).
+Por padrao, o frontend usa a rota interna `/api` para encaminhar chamadas para o Gateway. Para configurar o host do Gateway, ajuste `API_GATEWAY_URL` no arquivo `.env.local` em [frontend/.env.example](frontend/.env.example).
 
 ## Deploy (Render Free)
 
