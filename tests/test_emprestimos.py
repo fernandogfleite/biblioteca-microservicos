@@ -11,7 +11,11 @@ def test_loan_creation(tmp_path, monkeypatch):
     monkeypatch.setattr(
         services,
         "_fetch_book",
-        lambda catalog_url, book_id: {"id": book_id, "disponivel": True},
+        lambda catalog_url, book_id: {
+            "id": book_id,
+            "titulo": "Livro Teste",
+            "disponivel": True,
+        },
     )
     monkeypatch.setattr(
         services, "_update_book_availability", lambda *args, **kwargs: None
@@ -29,13 +33,18 @@ def test_loan_creation(tmp_path, monkeypatch):
     payload = response.get_json()
     assert payload["success"] is True
     assert payload["data"]["status"] == STATUS_EMPRESTADO
+    assert payload["data"]["livro_titulo"] == "Livro Teste"
 
 
 def test_loan_return(tmp_path, monkeypatch):
     monkeypatch.setattr(
         services,
         "_fetch_book",
-        lambda catalog_url, book_id: {"id": book_id, "disponivel": True},
+        lambda catalog_url, book_id: {
+            "id": book_id,
+            "titulo": "Livro Devolucao",
+            "disponivel": True,
+        },
     )
     monkeypatch.setattr(
         services, "_update_book_availability", lambda *args, **kwargs: None
@@ -56,13 +65,18 @@ def test_loan_return(tmp_path, monkeypatch):
     assert response.status_code == 200
     assert payload["success"] is True
     assert payload["data"]["status"] == STATUS_DEVOLVIDO
+    assert payload["data"]["livro_titulo"] == "Livro Devolucao"
 
 
 def test_open_loans_listing(tmp_path, monkeypatch):
     monkeypatch.setattr(
         services,
         "_fetch_book",
-        lambda catalog_url, book_id: {"id": book_id, "disponivel": True},
+        lambda catalog_url, book_id: {
+            "id": book_id,
+            "titulo": "Livro Aberto",
+            "disponivel": True,
+        },
     )
     monkeypatch.setattr(
         services, "_update_book_availability", lambda *args, **kwargs: None
@@ -82,6 +96,7 @@ def test_open_loans_listing(tmp_path, monkeypatch):
     assert open_response.status_code == 200
     assert len(open_payload["data"]) == 1
     assert open_payload["data"][0]["id"] == loan_id
+    assert open_payload["data"][0]["livro_titulo"] == "Livro Aberto"
 
     client.post("/devolucoes", json={"emprestimo_id": loan_id})
     open_response_after_return = client.get("/emprestimos/abertos")
@@ -94,7 +109,11 @@ def test_loan_creation_fails_when_book_unavailable(tmp_path, monkeypatch):
     monkeypatch.setattr(
         services,
         "_fetch_book",
-        lambda catalog_url, book_id: {"id": book_id, "disponivel": False},
+        lambda catalog_url, book_id: {
+            "id": book_id,
+            "titulo": "Livro Indisponivel",
+            "disponivel": False,
+        },
     )
 
     app = create_app({"TESTING": True, "DB_PATH": str(tmp_path / "emprestimos.db")})

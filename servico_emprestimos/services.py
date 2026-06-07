@@ -18,16 +18,24 @@ REQUIRED_FIELDS = ("nome_usuario", "livro_id")
 def init_db(db_path: str) -> None:
     """Create the database schema if it does not exist."""
     with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS emprestimos (
                 id TEXT PRIMARY KEY,
                 nome_usuario TEXT NOT NULL,
                 livro_id TEXT NOT NULL,
+                livro_titulo TEXT NOT NULL DEFAULT '',
                 status TEXT NOT NULL
             )
-            """
-        )
+            """)
+
+        columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(emprestimos)").fetchall()
+        }
+        if "livro_titulo" not in columns:
+            conn.execute(
+                "ALTER TABLE emprestimos ADD COLUMN livro_titulo TEXT NOT NULL DEFAULT ''"
+            )
+
         conn.commit()
 
 
@@ -51,6 +59,7 @@ def _row_to_loan(row: sqlite3.Row) -> Loan:
         id=row["id"],
         nome_usuario=row["nome_usuario"],
         livro_id=row["livro_id"],
+        livro_titulo=row["livro_titulo"],
         status=row["status"],
     )
 
@@ -136,16 +145,19 @@ def create_loan(db_path: str, payload: Dict[str, Any], catalog_url: str) -> Loan
     status = STATUS_EMPRESTADO
 
     book = _fetch_book(catalog_url, livro_id)
+    livro_titulo = str(book.get("titulo", "")).strip()
+    if not livro_titulo:
+        raise ValueError("Resposta invalida do catalogo.")
     if not bool(book.get("disponivel", False)):
         raise ValueError("Livro indisponivel para emprestimo.")
 
     with _get_connection(db_path) as conn:
         conn.execute(
             """
-            INSERT INTO emprestimos (id, nome_usuario, livro_id, status)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO emprestimos (id, nome_usuario, livro_id, livro_titulo, status)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (loan_id, nome_usuario, livro_id, status),
+            (loan_id, nome_usuario, livro_id, livro_titulo, status),
         )
         conn.commit()
 
@@ -161,6 +173,7 @@ def create_loan(db_path: str, payload: Dict[str, Any], catalog_url: str) -> Loan
         id=loan_id,
         nome_usuario=nome_usuario,
         livro_id=livro_id,
+        livro_titulo=livro_titulo,
         status=status,
     )
 
@@ -199,5 +212,6 @@ def return_loan(db_path: str, loan_id: str, catalog_url: str) -> Loan:
         id=loan.id,
         nome_usuario=loan.nome_usuario,
         livro_id=loan.livro_id,
+        livro_titulo=loan.livro_titulo,
         status=STATUS_DEVOLVIDO,
     )
