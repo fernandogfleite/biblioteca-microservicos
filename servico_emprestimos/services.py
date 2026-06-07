@@ -6,6 +6,8 @@ import sqlite3
 import uuid
 from typing import Any, Dict, List, Optional
 
+import requests
+
 from .models import Loan
 
 STATUS_EMPRESTADO = "EMPRESTADO"
@@ -60,6 +62,16 @@ def list_loans(db_path: str) -> List[Loan]:
     return [_row_to_loan(row) for row in rows]
 
 
+def list_open_loans(db_path: str) -> List[Loan]:
+    """Return only loans that are currently open."""
+    with _get_connection(db_path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM emprestimos WHERE status = ? ORDER BY id ASC",
+            (STATUS_EMPRESTADO,),
+        ).fetchall()
+    return [_row_to_loan(row) for row in rows]
+
+
 def get_loan(db_path: str, loan_id: str) -> Optional[Loan]:
     """Return a loan by ID, if it exists."""
     with _get_connection(db_path) as conn:
@@ -69,7 +81,50 @@ def get_loan(db_path: str, loan_id: str) -> Optional[Loan]:
     return _row_to_loan(row) if row else None
 
 
-def create_loan(db_path: str, payload: Dict[str, Any]) -> Loan:
+def _fetch_book(catalog_url: str, book_id: str) -> Dict[str, Any]:
+    """Fetch book data from catalog service."""
+    try:
+        response = requests.get(f"{catalog_url}/livros/{book_id}", timeout=4)
+    except requests.RequestException as exc:
+        raise ValueError("Falha ao consultar o catalogo.") from exc
+
+    if response.status_code == 404:
+        raise ValueError("Livro nao encontrado no catalogo.")
+    if not response.ok:
+        raise ValueError("Falha ao consultar o catalogo.")
+
+    payload = response.json()
+    if not payload.get("success"):
+        raise ValueError(payload.get("message") or "Falha ao consultar o catalogo.")
+
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        raise ValueError("Resposta invalida do catalogo.")
+    return data
+
+
+def _update_book_availability(catalog_url: str, book_id: str, disponivel: bool) -> None:
+    """Update book availability in catalog service."""
+    try:
+        response = requests.patch(
+            f"{catalog_url}/livros/{book_id}/disponibilidade",
+            json={"disponivel": disponivel},
+            timeout=4,
+        )
+    except requests.RequestException as exc:
+        raise ValueError("Falha ao atualizar disponibilidade no catalogo.") from exc
+
+    if not response.ok:
+        raise ValueError("Falha ao atualizar disponibilidade no catalogo.")
+
+    payload = response.json()
+    if not payload.get("success"):
+        raise ValueError(
+            payload.get("message") or "Falha ao atualizar disponibilidade no catalogo."
+        )
+
+
+def create_loan(db_path: str, payload: Dict[str, Any], catalog_url: str) -> Loan:
     """Create a new loan with status EMPRESTADO."""
     error = validate_loan_payload(payload)
     if error:
@@ -79,6 +134,10 @@ def create_loan(db_path: str, payload: Dict[str, Any]) -> Loan:
     nome_usuario = str(payload["nome_usuario"]).strip()
     livro_id = str(payload["livro_id"]).strip()
     status = STATUS_EMPRESTADO
+
+    book = _fetch_book(catalog_url, livro_id)
+    if not bool(book.get("disponivel", False)):
+        raise ValueError("Livro indisponivel para emprestimo.")
 
     with _get_connection(db_path) as conn:
         conn.execute(
@@ -90,6 +149,14 @@ def create_loan(db_path: str, payload: Dict[str, Any]) -> Loan:
         )
         conn.commit()
 
+    try:
+        _update_book_availability(catalog_url, livro_id, False)
+    except ValueError:
+        with _get_connection(db_path) as conn:
+            conn.execute("DELETE FROM emprestimos WHERE id = ?", (loan_id,))
+            conn.commit()
+        raise
+
     return Loan(
         id=loan_id,
         nome_usuario=nome_usuario,
@@ -98,7 +165,7 @@ def create_loan(db_path: str, payload: Dict[str, Any]) -> Loan:
     )
 
 
-def return_loan(db_path: str, loan_id: str) -> Loan:
+def return_loan(db_path: str, loan_id: str, catalog_url: str) -> Loan:
     """Mark a loan as returned."""
     with _get_connection(db_path) as conn:
         row = conn.execute(
@@ -116,6 +183,17 @@ def return_loan(db_path: str, loan_id: str) -> Loan:
             (STATUS_DEVOLVIDO, loan_id),
         )
         conn.commit()
+
+    try:
+        _update_book_availability(catalog_url, loan.livro_id, True)
+    except ValueError:
+        with _get_connection(db_path) as conn:
+            conn.execute(
+                "UPDATE emprestimos SET status = ? WHERE id = ?",
+                (STATUS_EMPRESTADO, loan_id),
+            )
+            conn.commit()
+        raise
 
     return Loan(
         id=loan.id,

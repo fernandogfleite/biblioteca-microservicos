@@ -14,8 +14,7 @@ REQUIRED_FIELDS = ("titulo", "autor", "categoria")
 def init_db(db_path: str) -> None:
     """Create the database schema if it does not exist."""
     with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS livros (
                 id TEXT PRIMARY KEY,
                 titulo TEXT NOT NULL,
@@ -23,8 +22,7 @@ def init_db(db_path: str) -> None:
                 categoria TEXT NOT NULL,
                 disponivel INTEGER NOT NULL
             )
-            """
-        )
+            """)
         conn.commit()
 
 
@@ -60,11 +58,44 @@ def list_books(db_path: str) -> List[Book]:
     return [_row_to_book(row) for row in rows]
 
 
+def list_available_books(db_path: str) -> List[Book]:
+    """Return only books currently available for loan."""
+    with _get_connection(db_path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM livros WHERE disponivel = 1 ORDER BY titulo ASC"
+        ).fetchall()
+    return [_row_to_book(row) for row in rows]
+
+
 def get_book(db_path: str, book_id: str) -> Optional[Book]:
     """Return a book by ID, if it exists."""
     with _get_connection(db_path) as conn:
         row = conn.execute("SELECT * FROM livros WHERE id = ?", (book_id,)).fetchone()
     return _row_to_book(row) if row else None
+
+
+def set_book_availability(db_path: str, book_id: str, disponivel: bool) -> Book:
+    """Update the availability of a book and return the updated entity."""
+    with _get_connection(db_path) as conn:
+        current_row = conn.execute(
+            "SELECT * FROM livros WHERE id = ?", (book_id,)
+        ).fetchone()
+        if not current_row:
+            raise ValueError("Livro nao encontrado.")
+
+        conn.execute(
+            "UPDATE livros SET disponivel = ? WHERE id = ?",
+            (int(disponivel), book_id),
+        )
+        conn.commit()
+
+        updated_row = conn.execute(
+            "SELECT * FROM livros WHERE id = ?", (book_id,)
+        ).fetchone()
+
+    if not updated_row:
+        raise ValueError("Livro nao encontrado.")
+    return _row_to_book(updated_row)
 
 
 def create_book(db_path: str, payload: Dict[str, Any]) -> Book:

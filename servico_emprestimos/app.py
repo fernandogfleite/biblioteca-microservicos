@@ -38,6 +38,10 @@ def create_app(config: Dict[str, Any] | None = None) -> Flask:
     app.config["DB_PATH"] = os.getenv(
         "EMPRESTIMOS_DB_PATH", os.path.join(base_dir, "emprestimos.db")
     )
+    app.config["CATALOG_SERVICE_URL"] = os.getenv(
+        "CATALOG_SERVICE_URL",
+        os.getenv("CATALOGO_SERVICE_URL", "http://localhost:5001"),
+    )
 
     if config:
         app.config.update(config)

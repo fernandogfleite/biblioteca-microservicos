@@ -68,6 +68,11 @@ def listar_livros():
     return _forward("GET", f"{CATALOGO_URL}/livros")
 
 
+@gateway_bp.get("/livros/disponiveis")
+def listar_livros_disponiveis():
+    return _forward("GET", f"{CATALOGO_URL}/livros/disponiveis")
+
+
 @gateway_bp.get("/livros/<book_id>")
 def buscar_livro(book_id: str):
     return _forward("GET", f"{CATALOGO_URL}/livros/{book_id}")
@@ -79,9 +84,24 @@ def criar_livro():
     return _forward("POST", f"{CATALOGO_URL}/livros", json_body=payload)
 
 
+@gateway_bp.patch("/livros/<book_id>/disponibilidade")
+def atualizar_disponibilidade_livro(book_id: str):
+    payload = request.get_json(silent=True) or {}
+    return _forward(
+        "PATCH",
+        f"{CATALOGO_URL}/livros/{book_id}/disponibilidade",
+        json_body=payload,
+    )
+
+
 @gateway_bp.get("/emprestimos")
 def listar_emprestimos():
     return _forward("GET", f"{EMPRESTIMOS_URL}/emprestimos")
+
+
+@gateway_bp.get("/emprestimos/abertos")
+def listar_emprestimos_abertos():
+    return _forward("GET", f"{EMPRESTIMOS_URL}/emprestimos/abertos")
 
 
 @gateway_bp.post("/emprestimos")

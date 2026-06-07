@@ -44,3 +44,53 @@ def test_book_listing(tmp_path):
     assert response.status_code == 200
     assert payload["success"] is True
     assert len(payload["data"]) == 2
+
+
+def test_available_books_listing(tmp_path):
+    app = create_app({"TESTING": True, "DB_PATH": str(tmp_path / "catalogo.db")})
+    client = app.test_client()
+
+    created_response = client.post(
+        "/livros",
+        json={"titulo": "Book A", "autor": "Autor A", "categoria": "Ficcao"},
+    )
+    created_book = created_response.get_json()["data"]
+
+    client.post(
+        "/livros",
+        json={"titulo": "Book B", "autor": "Autor B", "categoria": "Drama"},
+    )
+
+    client.patch(
+        f"/livros/{created_book['id']}/disponibilidade",
+        json={"disponivel": False},
+    )
+
+    response = client.get("/livros/disponiveis")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert len(payload["data"]) == 1
+    assert payload["data"][0]["titulo"] == "Book B"
+
+
+def test_update_book_availability(tmp_path):
+    app = create_app({"TESTING": True, "DB_PATH": str(tmp_path / "catalogo.db")})
+    client = app.test_client()
+
+    created_response = client.post(
+        "/livros",
+        json={"titulo": "Book C", "autor": "Autor C", "categoria": "Drama"},
+    )
+    book = created_response.get_json()["data"]
+
+    update_response = client.patch(
+        f"/livros/{book['id']}/disponibilidade",
+        json={"disponivel": False},
+    )
+    update_payload = update_response.get_json()
+
+    assert update_response.status_code == 200
+    assert update_payload["success"] is True
+    assert update_payload["data"]["disponivel"] is False
