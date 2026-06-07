@@ -29,6 +29,10 @@ wheels/
 .installed.cfg
 *.egg
 
+# Keep frontend shared utilities versioned
+!frontend/lib/
+!frontend/lib/**
+
 # pytest
 .pytest_cache/
 .coverage
