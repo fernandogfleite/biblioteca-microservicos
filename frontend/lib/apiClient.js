@@ -51,6 +51,10 @@ export function listBooks() {
   return request("/livros");
 }
 
+export function listAvailableBooks() {
+  return request("/livros/disponiveis");
+}
+
 export function createLoan(payload) {
   return request("/emprestimos", {
     method: "POST",
@@ -60,6 +64,10 @@ export function createLoan(payload) {
 
 export function listLoans() {
   return request("/emprestimos");
+}
+
+export function listOpenLoans() {
+  return request("/emprestimos/abertos");
 }
 
 export function returnLoan(payload) {

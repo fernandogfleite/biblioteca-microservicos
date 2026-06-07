@@ -203,7 +203,17 @@ a {
   font-size: 0.95rem;
 }
 
-.form-grid input:focus {
+.form-grid select {
+  border: 1px solid #bed3ee;
+  border-radius: 11px;
+  background: #f8fbff;
+  color: #0f2238;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+.form-grid input:focus,
+.form-grid select:focus {
   outline: 2px solid #8fc1ff;
   outline-offset: 1px;
 }

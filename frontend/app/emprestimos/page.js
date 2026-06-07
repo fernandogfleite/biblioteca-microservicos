@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { createLoan, listLoans, returnLoan } from "@/lib/apiClient";
+import {
+  createLoan,
+  listAvailableBooks,
+  listLoans,
+  listOpenLoans,
+  returnLoan,
+} from "@/lib/apiClient";
 import { requireText } from "@/lib/validators";
 
 const initialLoanForm = {
@@ -29,6 +35,8 @@ export default function EmprestimosPage() {
   const [loanForm, setLoanForm] = useState(initialLoanForm);
   const [returnForm, setReturnForm] = useState(initialReturnForm);
   const [loans, setLoans] = useState([]);
+  const [availableBooks, setAvailableBooks] = useState([]);
+  const [openLoans, setOpenLoans] = useState([]);
   const [busyAction, setBusyAction] = useState("");
   const [result, setResult] = useState(null);
 
@@ -56,6 +64,57 @@ export default function EmprestimosPage() {
     }
   };
 
+  const refreshSelectSources = async () => {
+    setBusyAction("load-sources");
+    try {
+      const [booksResponse, openLoansResponse] = await Promise.all([
+        listAvailableBooks(),
+        listOpenLoans(),
+      ]);
+
+      const booksData = Array.isArray(booksResponse?.data) ? booksResponse.data : [];
+      const openLoansData = Array.isArray(openLoansResponse?.data) ? openLoansResponse.data : [];
+
+      setAvailableBooks(booksData);
+      setOpenLoans(openLoansData);
+
+      setLoanForm((prev) => {
+        if (prev.livro_id && booksData.some((book) => book.id === prev.livro_id)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          livro_id: booksData[0]?.id || "",
+        };
+      });
+
+      setReturnForm((prev) => {
+        if (
+          prev.emprestimo_id &&
+          openLoansData.some((loan) => loan.id === prev.emprestimo_id)
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          emprestimo_id: openLoansData[0]?.id || "",
+        };
+      });
+    } catch (error) {
+      setResult({
+        ok: false,
+        message: error.message || "Falha ao carregar dados para os seletores.",
+      });
+    } finally {
+      setBusyAction("");
+    }
+  };
+
+  useEffect(() => {
+    void onListLoans();
+    void refreshSelectSources();
+  }, []);
+
   const onCreateLoan = async (event) => {
     event.preventDefault();
 
@@ -65,7 +124,7 @@ export default function EmprestimosPage() {
     if (!nome_usuario || !livro_id) {
       setResult({
         ok: false,
-        message: "Informe nome do usuario e ID do livro para registrar o emprestimo.",
+        message: "Informe nome do usuario e selecione um livro disponivel para registrar o emprestimo.",
       });
       return;
     }
@@ -74,6 +133,7 @@ export default function EmprestimosPage() {
     if (response?.success) {
       setLoanForm(initialLoanForm);
       await onListLoans();
+      await refreshSelectSources();
     }
   };
 
@@ -84,7 +144,7 @@ export default function EmprestimosPage() {
     if (!emprestimo_id) {
       setResult({
         ok: false,
-        message: "Informe um ID de emprestimo valido para devolucao.",
+        message: "Selecione um emprestimo em aberto para devolucao.",
       });
       return;
     }
@@ -93,6 +153,7 @@ export default function EmprestimosPage() {
     if (response?.success) {
       setReturnForm(initialReturnForm);
       await onListLoans();
+      await refreshSelectSources();
     }
   };
 
@@ -135,15 +196,29 @@ export default function EmprestimosPage() {
               />
             </label>
             <label>
-              ID do livro
-              <input
-                type="text"
+              Livro disponivel
+              <select
                 value={loanForm.livro_id}
                 onChange={(event) => setLoanForm((prev) => ({ ...prev, livro_id: event.target.value }))}
                 required
-              />
+                disabled={busyAction === "load-sources" || availableBooks.length === 0}
+              >
+                {availableBooks.length === 0 ? (
+                  <option value="">Nenhum livro disponivel</option>
+                ) : (
+                  availableBooks.map((book) => (
+                    <option key={book.id} value={book.id}>
+                      {book.titulo} ({book.id})
+                    </option>
+                  ))
+                )}
+              </select>
             </label>
-            <button className="action-button" type="submit" disabled={busyAction === "create-loan"}>
+            <button
+              className="action-button"
+              type="submit"
+              disabled={busyAction === "create-loan" || availableBooks.length === 0}
+            >
               {busyAction === "create-loan" ? "Registrando..." : "Registrar emprestimo"}
             </button>
           </form>
@@ -151,17 +226,31 @@ export default function EmprestimosPage() {
           <h2 style={{ marginTop: 22 }}>Registrar devolucao</h2>
           <form className="form-grid" onSubmit={onReturnLoan}>
             <label>
-              ID do emprestimo
-              <input
-                type="text"
+              Emprestimo em aberto
+              <select
                 value={returnForm.emprestimo_id}
                 onChange={(event) =>
                   setReturnForm((prev) => ({ ...prev, emprestimo_id: event.target.value }))
                 }
                 required
-              />
+                disabled={busyAction === "load-sources" || openLoans.length === 0}
+              >
+                {openLoans.length === 0 ? (
+                  <option value="">Nenhum emprestimo em aberto</option>
+                ) : (
+                  openLoans.map((loan) => (
+                    <option key={loan.id} value={loan.id}>
+                      {loan.nome_usuario} - {loan.livro_id}
+                    </option>
+                  ))
+                )}
+              </select>
             </label>
-            <button className="ghost-button" type="submit" disabled={busyAction === "return-loan"}>
+            <button
+              className="ghost-button"
+              type="submit"
+              disabled={busyAction === "return-loan" || openLoans.length === 0}
+            >
               {busyAction === "return-loan" ? "Registrando..." : "Confirmar devolucao"}
             </button>
           </form>
@@ -178,6 +267,14 @@ export default function EmprestimosPage() {
           <p className="helper-text">Atualize para verificar o status dos registros no servico.</p>
           <button className="ghost-button" onClick={onListLoans} disabled={busyAction === "list-loans"}>
             {busyAction === "list-loans" ? "Atualizando..." : "Atualizar lista"}
+          </button>
+          <button
+            className="ghost-button"
+            onClick={refreshSelectSources}
+            disabled={busyAction === "load-sources"}
+            style={{ marginLeft: 8 }}
+          >
+            {busyAction === "load-sources" ? "Sincronizando..." : "Atualizar seletores"}
           </button>
 
           <div className="list-wrap" aria-live="polite">
