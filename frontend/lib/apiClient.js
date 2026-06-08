@@ -77,6 +77,28 @@ export function returnLoan(payload) {
   });
 }
 
+export function createReservation(payload) {
+  return request("/reservas", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listReservations() {
+  return request("/reservas");
+}
+
+export function listPendingReservations() {
+  return request("/reservas/pendentes");
+}
+
+export function cancelReservation(payload) {
+  return request("/reservas/cancelar", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function requestRecommendations(category) {
   const encodedCategory = encodeURIComponent(category);
   return request(`/recomendacoes/${encodedCategory}`);
