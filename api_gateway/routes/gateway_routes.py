@@ -116,6 +116,28 @@ def devolver_emprestimo():
     return _forward("POST", f"{EMPRESTIMOS_URL}/devolucoes", json_body=payload)
 
 
+@gateway_bp.get("/reservas")
+def listar_reservas():
+    return _forward("GET", f"{EMPRESTIMOS_URL}/reservas")
+
+
+@gateway_bp.get("/reservas/pendentes")
+def listar_reservas_pendentes():
+    return _forward("GET", f"{EMPRESTIMOS_URL}/reservas/pendentes")
+
+
+@gateway_bp.post("/reservas")
+def criar_reserva():
+    payload = request.get_json(silent=True) or {}
+    return _forward("POST", f"{EMPRESTIMOS_URL}/reservas", json_body=payload)
+
+
+@gateway_bp.post("/reservas/cancelar")
+def cancelar_reserva():
+    payload = request.get_json(silent=True) or {}
+    return _forward("POST", f"{EMPRESTIMOS_URL}/reservas/cancelar", json_body=payload)
+
+
 @gateway_bp.get("/recomendacoes/<categoria>")
 def recomendar_livros(categoria: str):
     return _forward("GET", f"{RECOMENDACOES_URL}/recomendacoes/{categoria}")

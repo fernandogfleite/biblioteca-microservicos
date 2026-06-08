@@ -8,10 +8,14 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from .models import Loan
+from .models import Loan, Reservation
 
 STATUS_EMPRESTADO = "EMPRESTADO"
 STATUS_DEVOLVIDO = "DEVOLVIDO"
+
+STATUS_RESERVA_PENDENTE = "PENDENTE"
+STATUS_RESERVA_CANCELADA = "CANCELADA"
+
 REQUIRED_FIELDS = ("nome_usuario", "livro_id")
 
 
@@ -36,6 +40,17 @@ def init_db(db_path: str) -> None:
                 "ALTER TABLE emprestimos ADD COLUMN livro_titulo TEXT NOT NULL DEFAULT ''"
             )
 
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS reservas (
+                id TEXT PRIMARY KEY,
+                nome_usuario TEXT NOT NULL,
+                livro_id TEXT NOT NULL,
+                livro_titulo TEXT NOT NULL,
+                status TEXT NOT NULL,
+                criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """)
+
         conn.commit()
 
 
@@ -54,6 +69,15 @@ def validate_loan_payload(payload: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def validate_reservation_payload(payload: Dict[str, Any]) -> Optional[str]:
+    """Validate required reservation fields."""
+    for field in REQUIRED_FIELDS:
+        value = payload.get(field)
+        if value is None or str(value).strip() == "":
+            return f"Campo obrigatorio ausente ou vazio: {field}"
+    return None
+
+
 def _row_to_loan(row: sqlite3.Row) -> Loan:
     return Loan(
         id=row["id"],
@@ -61,6 +85,17 @@ def _row_to_loan(row: sqlite3.Row) -> Loan:
         livro_id=row["livro_id"],
         livro_titulo=row["livro_titulo"],
         status=row["status"],
+    )
+
+
+def _row_to_reservation(row: sqlite3.Row) -> Reservation:
+    return Reservation(
+        id=row["id"],
+        nome_usuario=row["nome_usuario"],
+        livro_id=row["livro_id"],
+        livro_titulo=row["livro_titulo"],
+        status=row["status"],
+        criado_em=row["criado_em"],
     )
 
 
@@ -88,6 +123,38 @@ def get_loan(db_path: str, loan_id: str) -> Optional[Loan]:
             "SELECT * FROM emprestimos WHERE id = ?", (loan_id,)
         ).fetchone()
     return _row_to_loan(row) if row else None
+
+
+def list_reservations(db_path: str) -> List[Reservation]:
+    """Return all reservations."""
+    with _get_connection(db_path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM reservas ORDER BY criado_em ASC, id ASC"
+        ).fetchall()
+    return [_row_to_reservation(row) for row in rows]
+
+
+def list_pending_reservations(db_path: str) -> List[Reservation]:
+    """Return only pending reservations."""
+    with _get_connection(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM reservas
+            WHERE status = ?
+            ORDER BY criado_em ASC, id ASC
+            """,
+            (STATUS_RESERVA_PENDENTE,),
+        ).fetchall()
+    return [_row_to_reservation(row) for row in rows]
+
+
+def get_reservation(db_path: str, reservation_id: str) -> Optional[Reservation]:
+    """Return a reservation by ID, if it exists."""
+    with _get_connection(db_path) as conn:
+        row = conn.execute(
+            "SELECT * FROM reservas WHERE id = ?", (reservation_id,)
+        ).fetchone()
+    return _row_to_reservation(row) if row else None
 
 
 def _fetch_book(catalog_url: str, book_id: str) -> Dict[str, Any]:
@@ -215,3 +282,86 @@ def return_loan(db_path: str, loan_id: str, catalog_url: str) -> Loan:
         livro_titulo=loan.livro_titulo,
         status=STATUS_DEVOLVIDO,
     )
+
+
+def create_reservation(
+    db_path: str, payload: Dict[str, Any], catalog_url: str
+) -> Reservation:
+    """Create a reservation for an unavailable book."""
+    error = validate_reservation_payload(payload)
+    if error:
+        raise ValueError(error)
+
+    reservation_id = str(uuid.uuid4())
+    nome_usuario = str(payload["nome_usuario"]).strip()
+    livro_id = str(payload["livro_id"]).strip()
+
+    book = _fetch_book(catalog_url, livro_id)
+    livro_titulo = str(book.get("titulo", "")).strip()
+    if not livro_titulo:
+        raise ValueError("Resposta invalida do catalogo.")
+
+    if bool(book.get("disponivel", False)):
+        raise ValueError("Livro disponivel para emprestimo. Nao e necessario reservar.")
+
+    with _get_connection(db_path) as conn:
+        existing = conn.execute(
+            """
+            SELECT * FROM reservas
+            WHERE livro_id = ?
+              AND nome_usuario = ?
+              AND status = ?
+            """,
+            (livro_id, nome_usuario, STATUS_RESERVA_PENDENTE),
+        ).fetchone()
+
+        if existing:
+            raise ValueError("Usuario ja possui reserva pendente para este livro.")
+
+        conn.execute(
+            """
+            INSERT INTO reservas (id, nome_usuario, livro_id, livro_titulo, status)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                reservation_id,
+                nome_usuario,
+                livro_id,
+                livro_titulo,
+                STATUS_RESERVA_PENDENTE,
+            ),
+        )
+        conn.commit()
+
+        row = conn.execute(
+            "SELECT * FROM reservas WHERE id = ?", (reservation_id,)
+        ).fetchone()
+
+    return _row_to_reservation(row)
+
+
+def cancel_reservation(db_path: str, reservation_id: str) -> Reservation:
+    """Cancel a pending reservation."""
+    with _get_connection(db_path) as conn:
+        row = conn.execute(
+            "SELECT * FROM reservas WHERE id = ?", (reservation_id,)
+        ).fetchone()
+
+        if not row:
+            raise ValueError("Reserva nao encontrada.")
+
+        reservation = _row_to_reservation(row)
+        if reservation.status == STATUS_RESERVA_CANCELADA:
+            raise ValueError("Reserva ja cancelada.")
+
+        conn.execute(
+            "UPDATE reservas SET status = ? WHERE id = ?",
+            (STATUS_RESERVA_CANCELADA, reservation_id),
+        )
+        conn.commit()
+
+        updated = conn.execute(
+            "SELECT * FROM reservas WHERE id = ?", (reservation_id,)
+        ).fetchone()
+
+    return _row_to_reservation(updated)

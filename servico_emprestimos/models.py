@@ -25,3 +25,26 @@ class Loan:
             "livro_titulo": self.livro_titulo,
             "status": self.status,
         }
+
+
+@dataclass(frozen=True)
+class Reservation:
+    """Represents a reservation for an unavailable book."""
+
+    id: str
+    nome_usuario: str
+    livro_id: str
+    livro_titulo: str
+    status: str
+    criado_em: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the reservation to a JSON-serializable dictionary."""
+        return {
+            "id": self.id,
+            "nome_usuario": self.nome_usuario,
+            "livro_id": self.livro_id,
+            "livro_titulo": self.livro_titulo,
+            "status": self.status,
+            "criado_em": self.criado_em,
+        }
