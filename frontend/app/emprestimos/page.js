@@ -16,6 +16,7 @@ import {
   returnLoan,
 } from "@/lib/apiClient";
 import UserBadge from "@/app/components/UserBadge";
+import { useAuth } from "@/lib/useAuth";
 import { requireText } from "@/lib/validators";
 
 const initialLoanForm = {
@@ -43,6 +44,7 @@ function normalizeResult(payload) {
 }
 
 export default function EmprestimosPage() {
+  const { isAdmin } = useAuth();
   const [loanForm, setLoanForm] = useState(initialLoanForm);
   const [returnForm, setReturnForm] = useState(initialReturnForm);
   const [reservationForm, setReservationForm] = useState(initialReservationForm);
@@ -272,6 +274,11 @@ export default function EmprestimosPage() {
         <Link className="nav-chip" href="/recomendacoes">
           Recomendacoes
         </Link>
+        {isAdmin && (
+          <Link className="nav-chip" href="/dashboard">
+            Dashboard
+          </Link>
+        )}
         <UserBadge />
       </nav>
 
@@ -282,6 +289,7 @@ export default function EmprestimosPage() {
       </header>
 
       <main className="layout-grid">
+        {isAdmin ? (
         <section className="surface-card">
           <h2>Registrar emprestimo</h2>
           <form className="form-grid" onSubmit={onCreateLoan}>
@@ -443,7 +451,13 @@ export default function EmprestimosPage() {
             </div>
           )}
         </section>
+        ) : (
+          <section className="surface-card">
+            <p>Acesso restrito. Apenas administradores podem registrar emprestimos e reservas.</p>
+          </section>
+        )}
 
+        {isAdmin && (
         <section className="surface-card">
           <h2>Emprestimos atuais</h2>
           <p className="helper-text">
@@ -518,6 +532,7 @@ export default function EmprestimosPage() {
             )}
           </div>
         </section>
+        )}
       </main>
     </div>
   );

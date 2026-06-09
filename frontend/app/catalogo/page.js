@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { createBook, listBooks } from "@/lib/apiClient";
 import UserBadge from "@/app/components/UserBadge";
+import { useAuth } from "@/lib/useAuth";
 import { normalizeBookPayload } from "@/lib/validators";
 
 const initialBookForm = {
@@ -31,6 +32,7 @@ function buildResult(payload) {
 }
 
 export default function CatalogoPage() {
+  const { isAdmin } = useAuth();
   const [bookForm, setBookForm] = useState(initialBookForm);
   const [filters, setFilters] = useState(initialFilters);
   const [books, setBooks] = useState([]);
@@ -101,9 +103,11 @@ export default function CatalogoPage() {
         <Link className="nav-chip" href="/recomendacoes">
           Recomendacoes
         </Link>
-        <Link className="nav-chip" href="/dashboard">
-          Dashboard
-        </Link>
+        {isAdmin && (
+          <Link className="nav-chip" href="/dashboard">
+            Dashboard
+          </Link>
+        )}
         <UserBadge />
       </nav>
 
@@ -114,6 +118,7 @@ export default function CatalogoPage() {
       </header>
 
       <main className="layout-grid">
+        {isAdmin && (
         <section className="surface-card">
           <h2>Novo livro</h2>
           <p className="helper-text">Dados completos ajudam as recomendacoes e emprestimos.</p>
@@ -158,6 +163,7 @@ export default function CatalogoPage() {
             </div>
           )}
         </section>
+        )}
 
         <section className="surface-card">
           <h2>Buscar livros</h2>

@@ -5,9 +5,11 @@ import { useState } from "react";
 
 import { requestRecommendations } from "@/lib/apiClient";
 import UserBadge from "@/app/components/UserBadge";
+import { useAuth } from "@/lib/useAuth";
 import { requireText } from "@/lib/validators";
 
 export default function RecomendacoesPage() {
+  const { isAdmin } = useAuth();
   const [categoria, setCategoria] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -71,6 +73,11 @@ export default function RecomendacoesPage() {
         <Link className="nav-chip active" href="/recomendacoes">
           Recomendacoes
         </Link>
+        {isAdmin && (
+          <Link className="nav-chip" href="/dashboard">
+            Dashboard
+          </Link>
+        )}
         <UserBadge />
       </nav>
 

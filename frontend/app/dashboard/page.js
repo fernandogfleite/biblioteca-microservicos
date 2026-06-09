@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { getDashboard } from "@/lib/apiClient";
 import UserBadge from "@/app/components/UserBadge";
+import { useAuth } from "@/lib/useAuth";
 
 function StatCard({ label, value, sub }) {
   return (
@@ -19,6 +20,7 @@ function StatCard({ label, value, sub }) {
 }
 
 export default function DashboardPage() {
+  const { isAdmin } = useAuth();
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -71,6 +73,13 @@ export default function DashboardPage() {
         <p>Metricas agregadas de todos os servicos. Acesso restrito a administradores.</p>
       </header>
 
+      {!isAdmin ? (
+        <main>
+          <div className="result-box error" style={{ marginTop: "1.5rem" }}>
+            Acesso negado. Esta pagina e restrita a administradores.
+          </div>
+        </main>
+      ) : (
       <main>
         <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem" }}>
           <button className="ghost-button" onClick={fetchDashboard} disabled={busy}>
@@ -143,6 +152,7 @@ export default function DashboardPage() {
           </>
         )}
       </main>
+      )}
     </div>
   );
 }
