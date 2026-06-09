@@ -11,6 +11,7 @@ from .services import (
     get_book,
     list_available_books,
     list_books,
+    search_books,
     set_book_availability,
 )
 
@@ -34,8 +35,22 @@ def json_response(
 
 @catalog_bp.get("/livros")
 def listar_livros():
+    """List books; supports optional query filters: titulo, autor, categoria, disponivel."""
     db_path = current_app.config["DB_PATH"]
-    books = [book.to_dict() for book in list_books(db_path)]
+
+    titulo = request.args.get("titulo", "").strip() or None
+    autor = request.args.get("autor", "").strip() or None
+    categoria = request.args.get("categoria", "").strip() or None
+    disponivel_raw = request.args.get("disponivel")
+    disponivel: bool | None = None
+    if disponivel_raw is not None:
+        disponivel = disponivel_raw.lower() in {"true", "1", "yes"}
+
+    if titulo or autor or categoria or disponivel is not None:
+        books = [book.to_dict() for book in search_books(db_path, titulo, autor, categoria, disponivel)]
+    else:
+        books = [book.to_dict() for book in list_books(db_path)]
+
     return json_response(success=True, data=books)
 
 

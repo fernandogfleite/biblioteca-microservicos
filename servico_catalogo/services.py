@@ -58,6 +58,38 @@ def list_books(db_path: str) -> List[Book]:
     return [_row_to_book(row) for row in rows]
 
 
+def search_books(
+    db_path: str,
+    titulo: Optional[str] = None,
+    autor: Optional[str] = None,
+    categoria: Optional[str] = None,
+    disponivel: Optional[bool] = None,
+) -> List[Book]:
+    """Return books matching the given filter criteria (combined AND filters)."""
+    clauses = []
+    params: List[Any] = []
+
+    if titulo:
+        clauses.append("LOWER(titulo) LIKE ?")
+        params.append(f"%{titulo.lower()}%")
+    if autor:
+        clauses.append("LOWER(autor) LIKE ?")
+        params.append(f"%{autor.lower()}%")
+    if categoria:
+        clauses.append("LOWER(categoria) LIKE ?")
+        params.append(f"%{categoria.lower()}%")
+    if disponivel is not None:
+        clauses.append("disponivel = ?")
+        params.append(int(disponivel))
+
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    sql = f"SELECT * FROM livros {where} ORDER BY titulo ASC"
+
+    with _get_connection(db_path) as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [_row_to_book(row) for row in rows]
+
+
 def list_available_books(db_path: str) -> List[Book]:
     """Return only books currently available for loan."""
     with _get_connection(db_path) as conn:

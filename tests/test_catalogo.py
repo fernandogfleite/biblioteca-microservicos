@@ -94,3 +94,122 @@ def test_update_book_availability(tmp_path):
     assert update_response.status_code == 200
     assert update_payload["success"] is True
     assert update_payload["data"]["disponivel"] is False
+
+
+# ── Filter / search tests ─────────────────────────────────────────────────────
+
+
+def _seed_books(client):
+    """Create a set of known books for filter testing."""
+    client.post(
+        "/livros",
+        json={"titulo": "Dom Casmurro", "autor": "Machado de Assis", "categoria": "Classico"},
+    )
+    client.post(
+        "/livros",
+        json={"titulo": "A Hora da Estrela", "autor": "Clarice Lispector", "categoria": "Romance"},
+    )
+    client.post(
+        "/livros",
+        json={"titulo": "O Cortico", "autor": "Aluisio Azevedo", "categoria": "Classico"},
+    )
+
+
+def test_filter_by_titulo(tmp_path):
+    app = create_app({"TESTING": True, "DB_PATH": str(tmp_path / "catalogo.db")})
+    client = app.test_client()
+    _seed_books(client)
+
+    response = client.get("/livros?titulo=dom")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert len(payload["data"]) == 1
+    assert payload["data"][0]["titulo"] == "Dom Casmurro"
+
+
+def test_filter_by_autor(tmp_path):
+    app = create_app({"TESTING": True, "DB_PATH": str(tmp_path / "catalogo.db")})
+    client = app.test_client()
+    _seed_books(client)
+
+    response = client.get("/livros?autor=machado")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert len(payload["data"]) == 1
+    assert "Machado" in payload["data"][0]["autor"]
+
+
+def test_filter_by_categoria(tmp_path):
+    app = create_app({"TESTING": True, "DB_PATH": str(tmp_path / "catalogo.db")})
+    client = app.test_client()
+    _seed_books(client)
+
+    response = client.get("/livros?categoria=classico")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert len(payload["data"]) == 2
+
+
+def test_filter_by_disponivel_true(tmp_path):
+    app = create_app({"TESTING": True, "DB_PATH": str(tmp_path / "catalogo.db")})
+    client = app.test_client()
+    _seed_books(client)
+
+    # Mark Dom Casmurro as unavailable
+    all_books = client.get("/livros").get_json()["data"]
+    dom_id = next(b["id"] for b in all_books if b["titulo"] == "Dom Casmurro")
+    client.patch(f"/livros/{dom_id}/disponibilidade", json={"disponivel": False})
+
+    response = client.get("/livros?disponivel=true")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert all(b["disponivel"] for b in payload["data"])
+    assert len(payload["data"]) == 2
+
+
+def test_filter_by_disponivel_false(tmp_path):
+    app = create_app({"TESTING": True, "DB_PATH": str(tmp_path / "catalogo.db")})
+    client = app.test_client()
+    _seed_books(client)
+
+    all_books = client.get("/livros").get_json()["data"]
+    dom_id = next(b["id"] for b in all_books if b["titulo"] == "Dom Casmurro")
+    client.patch(f"/livros/{dom_id}/disponibilidade", json={"disponivel": False})
+
+    response = client.get("/livros?disponivel=false")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert len(payload["data"]) == 1
+    assert payload["data"][0]["disponivel"] is False
+
+
+def test_combined_filters(tmp_path):
+    app = create_app({"TESTING": True, "DB_PATH": str(tmp_path / "catalogo.db")})
+    client = app.test_client()
+    _seed_books(client)
+
+    response = client.get("/livros?categoria=classico&autor=machado")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert len(payload["data"]) == 1
+    assert payload["data"][0]["titulo"] == "Dom Casmurro"
+
+
+def test_no_filter_returns_all(tmp_path):
+    app = create_app({"TESTING": True, "DB_PATH": str(tmp_path / "catalogo.db")})
+    client = app.test_client()
+    _seed_books(client)
+
+    response = client.get("/livros")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert len(payload["data"]) == 3
+
