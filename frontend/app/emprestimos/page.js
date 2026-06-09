@@ -14,6 +14,7 @@ import {
   listPendingReservations,
   returnLoan,
 } from "@/lib/apiClient";
+import UserBadge from "@/app/components/UserBadge";
 import { requireText } from "@/lib/validators";
 
 const initialLoanForm = {
@@ -266,6 +267,7 @@ export default function EmprestimosPage() {
         <Link className="nav-chip" href="/recomendacoes">
           Recomendacoes
         </Link>
+        <UserBadge />
       </nav>
 
       <header className="hero-panel">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { getDashboard } from "@/lib/apiClient";
+import UserBadge from "@/app/components/UserBadge";
 
 function StatCard({ label, value, sub }) {
   return (
@@ -61,6 +62,7 @@ export default function DashboardPage() {
         <Link className="nav-chip active" href="/dashboard">
           Dashboard
         </Link>
+        <UserBadge />
       </nav>
 
       <header className="hero-panel">

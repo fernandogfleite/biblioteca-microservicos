@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { createBook, listBooks } from "@/lib/apiClient";
+import UserBadge from "@/app/components/UserBadge";
 import { normalizeBookPayload } from "@/lib/validators";
 
 const initialBookForm = {
@@ -103,6 +104,7 @@ export default function CatalogoPage() {
         <Link className="nav-chip" href="/dashboard">
           Dashboard
         </Link>
+        <UserBadge />
       </nav>
 
       <header className="hero-panel">

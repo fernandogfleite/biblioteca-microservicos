@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { registerUser } from "@/lib/apiClient";
+import UserBadge from "@/app/components/UserBadge";
 
 export default function RegistroPage() {
   const router = useRouter();
@@ -50,6 +51,7 @@ export default function RegistroPage() {
         <Link className="nav-chip" href="/login">
           Login
         </Link>
+        <UserBadge />
       </nav>
 
       <header className="hero-panel">

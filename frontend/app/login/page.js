@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { login } from "@/lib/apiClient";
+import UserBadge from "@/app/components/UserBadge";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,6 +44,7 @@ export default function LoginPage() {
         <Link className="nav-chip" href="/">
           Hub
         </Link>
+        <UserBadge />
       </nav>
 
       <header className="hero-panel">

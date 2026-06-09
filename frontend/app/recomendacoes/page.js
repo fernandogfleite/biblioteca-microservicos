@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { requestRecommendations } from "@/lib/apiClient";
+import UserBadge from "@/app/components/UserBadge";
 import { requireText } from "@/lib/validators";
 
 export default function RecomendacoesPage() {
@@ -70,6 +71,7 @@ export default function RecomendacoesPage() {
         <Link className="nav-chip active" href="/recomendacoes">
           Recomendacoes
         </Link>
+        <UserBadge />
       </nav>
 
       <header className="hero-panel">
