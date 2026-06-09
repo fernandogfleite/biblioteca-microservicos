@@ -4,15 +4,24 @@ function buildPath(path) {
   return `${API_PREFIX}${path}`;
 }
 
+function getToken() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("auth_token");
+}
+
 async function request(path, options = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
+
+  const token = getToken();
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
   try {
     const response = await fetch(buildPath(path), {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        ...authHeaders,
         ...(options.headers || {}),
       },
       signal: controller.signal,
@@ -40,6 +49,49 @@ async function request(path, options = {}) {
   }
 }
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+export function login(payload) {
+  return request("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function registerUser(payload) {
+  return request("/usuarios", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+
+export function listUsers() {
+  return request("/usuarios");
+}
+
+export function getUser(userId) {
+  return request(`/usuarios/${userId}`);
+}
+
+export function updateUser(userId, payload) {
+  return request(`/usuarios/${userId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteUser(userId) {
+  return request(`/usuarios/${userId}`, { method: "DELETE" });
+}
+
+export function getUserLoanHistory(userId) {
+  return request(`/usuarios/${userId}/historico-emprestimos`);
+}
+
+// ── Books ─────────────────────────────────────────────────────────────────────
+
 export function createBook(payload) {
   return request("/livros", {
     method: "POST",
@@ -47,13 +99,26 @@ export function createBook(payload) {
   });
 }
 
-export function listBooks() {
-  return request("/livros");
+export function listBooks(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.titulo) params.set("titulo", filters.titulo);
+  if (filters.autor) params.set("autor", filters.autor);
+  if (filters.categoria) params.set("categoria", filters.categoria);
+  if (filters.disponivel !== undefined && filters.disponivel !== "")
+    params.set("disponivel", String(filters.disponivel));
+  const qs = params.toString();
+  return request(`/livros${qs ? `?${qs}` : ""}`);
 }
 
 export function listAvailableBooks() {
   return request("/livros/disponiveis");
 }
+
+export function getBookLoanHistory(bookId) {
+  return request(`/livros/${bookId}/historico-emprestimos`);
+}
+
+// ── Loans ─────────────────────────────────────────────────────────────────────
 
 export function createLoan(payload) {
   return request("/emprestimos", {
@@ -98,6 +163,19 @@ export function cancelReservation(payload) {
     body: JSON.stringify(payload),
   });
 }
+
+// ── Recommendations ───────────────────────────────────────────────────────────
+
+export function getRecommendations(categoria) {
+  return request(`/recomendacoes/${encodeURIComponent(categoria)}`);
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+export function getDashboard() {
+  return request("/dashboard");
+}
+
 
 export function requestRecommendations(category) {
   const encodedCategory = encodeURIComponent(category);

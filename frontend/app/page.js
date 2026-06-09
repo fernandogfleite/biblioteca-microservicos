@@ -19,6 +19,12 @@ const modules = [
     description: "Busque livros por categoria em uma interface focada em descoberta.",
     action: "Abrir modulo de recomendacoes",
   },
+  {
+    href: "/dashboard",
+    title: "Dashboard",
+    description: "Metricas administrativas: acervo, usuarios, emprestimos e mais.",
+    action: "Abrir dashboard",
+  },
 ];
 
 export default function HomePage() {
@@ -31,6 +37,14 @@ export default function HomePage() {
           Interface separada por contexto de negocio. Escolha o modulo e trabalhe com foco total em
           cada servico.
         </p>
+        <div style={{ marginTop: "1rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <Link href="/login" className="module-link">
+            Login
+          </Link>
+          <Link href="/registro" className="module-link">
+            Cadastro
+          </Link>
+        </div>
       </header>
 
       <section className="module-grid" aria-label="Modulos disponiveis">
