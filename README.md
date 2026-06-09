@@ -1,6 +1,183 @@
 # Biblioteca Microservicos
 
-Sistema simples de gerenciamento de biblioteca online usando Microservicos com Flask. O projeto foca em separacao clara de responsabilidades, comunicacao via HTTP e resposta consistente em JSON.
+Sistema de gerenciamento de biblioteca online com Microservicos, autenticacao JWT e controle de acesso por perfil.
+
+## Visao Geral da Arquitetura
+
+1. **API Gateway (5000)**: ponto de entrada unico, roteamento e validacao JWT.
+2. **Servico de Catalogo (5001)**: cadastro, consulta e filtros de livros.
+3. **Servico de Emprestimos (5002)**: emprestimos, devolucoes, reservas e historico.
+4. **Servico de Recomendacao (5003)**: filtragem de livros por categoria.
+5. **Servico de Usuarios (5004)**: gestao de usuarios e autenticacao JWT.
+6. **Frontend**: aplicacao Next.js com login, dashboard e modulos de negocio.
+
+```mermaid
+graph TD
+  UI[Frontend] -->|HTTP + JWT| GW[API Gateway]
+  GW -->|HTTP| CAT[Servico de Catalogo]
+  GW -->|HTTP| LOAN[Servico de Emprestimos]
+  GW -->|HTTP| REC[Servico de Recomendacao]
+  GW -->|HTTP| USR[Servico de Usuarios]
+  REC -->|HTTP| CAT
+  LOAN -->|HTTP| CAT
+  LOAN -->|HTTP| USR
+```
+
+## Perfis e Permissoes
+
+| Perfil | Permissoes |
+|--------|-----------|
+| ADMIN  | Criar livros, gerenciar usuarios, ver dashboard, todos os emprestimos, relatorios |
+| USER   | Navegar catalogo, buscar livros, ver disponibilidade, solicitar emprestimos, ver proprio historico |
+
+## Autenticacao
+
+1. `POST /auth/login` — retorna token JWT (8 horas de validade).
+2. Incluir o token em todas as requisicoes protegidas: `Authorization: Bearer <token>`.
+3. O Gateway valida o token e verifica o perfil antes de encaminhar.
+
+## Estrutura de Pastas
+
+```
+biblioteca-microservicos/
+├── api_gateway/
+│   ├── app.py
+│   └── routes/
+├── servico_catalogo/
+│   ├── app.py, models.py, services.py, routes.py
+├── servico_emprestimos/
+│   ├── app.py, models.py, services.py, routes.py
+├── servico_recomendacao/
+│   ├── app.py, services.py, routes.py
+├── servico_usuario/
+│   ├── app.py, models.py, services.py, routes.py
+├── frontend/
+│   ├── app/
+│   │   ├── catalogo/, emprestimos/, recomendacoes/
+│   │   ├── login/, registro/, dashboard/
+│   └── lib/
+├── tests/
+├── requirements.txt
+└── render.yaml
+```
+
+## Instalacao
+
+Requisitos: **Python 3.12+**.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Copie `.env.example` para `.env` e ajuste as variaveis.
+
+## Executando os Servicos
+
+```bash
+python -m servico_catalogo.app       # porta 5001
+python -m servico_emprestimos.app    # porta 5002
+python -m servico_recomendacao.app   # porta 5003
+python -m servico_usuario.app        # porta 5004
+python -m api_gateway.app            # porta 5000
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Formato de Resposta
+
+```json
+{ "success": true, "data": {} }
+{ "success": false, "message": "Descricao do problema" }
+```
+
+## Exemplos de API
+
+**Login:**
+```bash
+curl -X POST http://localhost:5000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"admin123"}'
+```
+
+**Cadastrar usuario:**
+```bash
+curl -X POST http://localhost:5000/usuarios \
+  -H "Content-Type: application/json" \
+  -d '{"full_name":"Ana Lima","email":"ana@ex.com","cpf":"12345678901","password":"senha123"}'
+```
+
+**Cadastrar livro (requer ADMIN):**
+```bash
+curl -X POST http://localhost:5000/livros \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"titulo":"Dom Casmurro","autor":"Machado de Assis","categoria":"Classico"}'
+```
+
+**Buscar livros com filtros:**
+```bash
+curl "http://localhost:5000/livros?titulo=dom"
+curl "http://localhost:5000/livros?autor=machado"
+curl "http://localhost:5000/livros?categoria=romance"
+curl "http://localhost:5000/livros?disponivel=true"
+curl "http://localhost:5000/livros?categoria=classico&autor=machado"
+```
+
+**Criar emprestimo (requer autenticacao):**
+```bash
+curl -X POST http://localhost:5000/emprestimos \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"user_id":"ID_DO_USUARIO","livro_id":"ID_DO_LIVRO"}'
+```
+
+**Historico de emprestimos:**
+```bash
+curl "http://localhost:5000/usuarios/<id>/historico-emprestimos" \
+  -H "Authorization: Bearer <token>"
+curl "http://localhost:5000/livros/<id>/historico-emprestimos" \
+  -H "Authorization: Bearer <token>"
+```
+
+**Dashboard (requer ADMIN):**
+```bash
+curl http://localhost:5000/dashboard \
+  -H "Authorization: Bearer <token>"
+```
+
+## Novos Endpoints
+
+| Metodo | Rota | Permissao | Descricao |
+|--------|------|-----------|-----------|
+| POST | /auth/login | Publico | Login e retorno de JWT |
+| POST | /usuarios | Publico | Cadastro de usuario |
+| GET | /usuarios | ADMIN | Listar todos os usuarios |
+| GET | /usuarios/{id} | AUTH | Buscar usuario por ID |
+| PUT | /usuarios/{id} | AUTH | Atualizar usuario |
+| DELETE | /usuarios/{id} | ADMIN | Excluir usuario |
+| GET | /usuarios/{id}/historico-emprestimos | AUTH | Historico de emprestimos do usuario |
+| GET | /livros | Publico | Listar/filtrar livros (titulo, autor, categoria, disponivel) |
+| GET | /livros/{id}/historico-emprestimos | AUTH | Historico de emprestimos do livro |
+| GET | /dashboard | ADMIN | Metricas agregadas de todos os servicos |
+
+## Testes
+
+```bash
+pytest
+```
+
+## Deploy (Render Free)
+
+Consulte [DEPLOYMENT.md](DEPLOYMENT.md) para instrucoes completas.
+
 
 ## Visao Geral da Arquitetura
 
