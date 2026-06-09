@@ -12,13 +12,14 @@ import {
   listLoans,
   listOpenLoans,
   listPendingReservations,
+  listUsers,
   returnLoan,
 } from "@/lib/apiClient";
 import UserBadge from "@/app/components/UserBadge";
 import { requireText } from "@/lib/validators";
 
 const initialLoanForm = {
-  nome_usuario: "",
+  user_id: "",
   livro_id: "",
 };
 
@@ -27,7 +28,7 @@ const initialReturnForm = {
 };
 
 const initialReservationForm = {
-  nome_usuario: "",
+  user_id: "",
   livro_id: "",
 };
 
@@ -47,6 +48,7 @@ export default function EmprestimosPage() {
   const [reservationForm, setReservationForm] = useState(initialReservationForm);
 
   const [loans, setLoans] = useState([]);
+  const [users, setUsers] = useState([]);
   const [availableBooks, setAvailableBooks] = useState([]);
   const [unavailableBooks, setUnavailableBooks] = useState([]);
   const [openLoans, setOpenLoans] = useState([]);
@@ -87,11 +89,13 @@ export default function EmprestimosPage() {
         allBooksResponse,
         openLoansResponse,
         pendingReservationsResponse,
+        usersResponse,
       ] = await Promise.all([
         listAvailableBooks(),
         listBooks(),
         listOpenLoans(),
         listPendingReservations(),
+        listUsers(),
       ]);
 
       const booksData = Array.isArray(booksResponse?.data) ? booksResponse.data : [];
@@ -100,6 +104,9 @@ export default function EmprestimosPage() {
       const pendingReservationsData = Array.isArray(pendingReservationsResponse?.data)
         ? pendingReservationsResponse.data
         : [];
+      const nonAdminUsers = Array.isArray(usersResponse?.data)
+        ? usersResponse.data.filter((u) => u.role !== "ADMIN")
+        : [];
 
       const unavailableBooksData = allBooksData.filter((book) => book.disponivel === false);
 
@@ -107,14 +114,15 @@ export default function EmprestimosPage() {
       setUnavailableBooks(unavailableBooksData);
       setOpenLoans(openLoansData);
       setPendingReservations(pendingReservationsData);
+      setUsers(nonAdminUsers);
 
       setLoanForm((prev) => {
-        if (prev.livro_id && booksData.some((book) => book.id === prev.livro_id)) {
-          return prev;
-        }
+        const validBook = prev.livro_id && booksData.some((book) => book.id === prev.livro_id);
+        const validUser = prev.user_id && nonAdminUsers.some((u) => u.id === prev.user_id);
         return {
           ...prev,
-          livro_id: booksData[0]?.id || "",
+          livro_id: validBook ? prev.livro_id : booksData[0]?.id || "",
+          user_id: validUser ? prev.user_id : nonAdminUsers[0]?.id || "",
         };
       });
 
@@ -132,15 +140,12 @@ export default function EmprestimosPage() {
       });
 
       setReservationForm((prev) => {
-        if (
-          prev.livro_id &&
-          unavailableBooksData.some((book) => book.id === prev.livro_id)
-        ) {
-          return prev;
-        }
+        const validBook = prev.livro_id && unavailableBooksData.some((book) => book.id === prev.livro_id);
+        const validUser = prev.user_id && nonAdminUsers.some((u) => u.id === prev.user_id);
         return {
           ...prev,
-          livro_id: unavailableBooksData[0]?.id || "",
+          livro_id: validBook ? prev.livro_id : unavailableBooksData[0]?.id || "",
+          user_id: validUser ? prev.user_id : nonAdminUsers[0]?.id || "",
         };
       });
     } catch (error) {
@@ -161,20 +166,20 @@ export default function EmprestimosPage() {
   const onCreateLoan = async (event) => {
     event.preventDefault();
 
-    const nome_usuario = requireText(loanForm.nome_usuario);
+    const user_id = requireText(loanForm.user_id);
     const livro_id = requireText(loanForm.livro_id);
 
-    if (!nome_usuario || !livro_id) {
+    if (!user_id || !livro_id) {
       setResult({
         ok: false,
         message:
-          "Informe nome do usuario e selecione um livro disponivel para registrar o emprestimo.",
+          "Selecione um usuario e um livro disponivel para registrar o emprestimo.",
       });
       return;
     }
 
     const response = await runWithFeedback("create-loan", () =>
-      createLoan({ nome_usuario, livro_id })
+      createLoan({ user_id, livro_id })
     );
 
     if (response?.success) {
@@ -210,20 +215,20 @@ export default function EmprestimosPage() {
   const onCreateReservation = async (event) => {
     event.preventDefault();
 
-    const nome_usuario = requireText(reservationForm.nome_usuario);
+    const user_id = requireText(reservationForm.user_id);
     const livro_id = requireText(reservationForm.livro_id);
 
-    if (!nome_usuario || !livro_id) {
+    if (!user_id || !livro_id) {
       setResult({
         ok: false,
         message:
-          "Informe nome do usuario e selecione um livro indisponivel para criar a reserva.",
+          "Selecione um usuario e um livro indisponivel para criar a reserva.",
       });
       return;
     }
 
     const response = await runWithFeedback("create-reservation", () =>
-      createReservation({ nome_usuario, livro_id })
+      createReservation({ user_id, livro_id })
     );
 
     if (response?.success) {
@@ -281,15 +286,25 @@ export default function EmprestimosPage() {
           <h2>Registrar emprestimo</h2>
           <form className="form-grid" onSubmit={onCreateLoan}>
             <label>
-              Nome do usuario
-              <input
-                type="text"
-                value={loanForm.nome_usuario}
+              Usuario
+              <select
+                value={loanForm.user_id}
                 onChange={(event) =>
-                  setLoanForm((prev) => ({ ...prev, nome_usuario: event.target.value }))
+                  setLoanForm((prev) => ({ ...prev, user_id: event.target.value }))
                 }
                 required
-              />
+                disabled={busyAction === "load-sources" || users.length === 0}
+              >
+                {users.length === 0 ? (
+                  <option value="">Nenhum usuario cadastrado</option>
+                ) : (
+                  users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name} ({u.email})
+                    </option>
+                  ))
+                )}
+              </select>
             </label>
 
             <label>
@@ -362,18 +377,28 @@ export default function EmprestimosPage() {
           <h2 style={{ marginTop: 22 }}>Reservar livro indisponivel</h2>
           <form className="form-grid" onSubmit={onCreateReservation}>
             <label>
-              Nome do usuario
-              <input
-                type="text"
-                value={reservationForm.nome_usuario}
+              Usuario
+              <select
+                value={reservationForm.user_id}
                 onChange={(event) =>
                   setReservationForm((prev) => ({
                     ...prev,
-                    nome_usuario: event.target.value,
+                    user_id: event.target.value,
                   }))
                 }
                 required
-              />
+                disabled={busyAction === "load-sources" || users.length === 0}
+              >
+                {users.length === 0 ? (
+                  <option value="">Nenhum usuario cadastrado</option>
+                ) : (
+                  users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name} ({u.email})
+                    </option>
+                  ))
+                )}
+              </select>
             </label>
 
             <label>
