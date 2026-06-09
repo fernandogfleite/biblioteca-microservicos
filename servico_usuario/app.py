@@ -5,7 +5,10 @@ from __future__ import annotations
 import os
 from typing import Any, Dict
 
+from dotenv import load_dotenv
 from flask import Flask
+
+load_dotenv()
 from flask_cors import CORS
 
 from .routes import user_bp

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import os
 
+from dotenv import load_dotenv
 from flask import Flask
+
+load_dotenv()
 from flask_cors import CORS
 
 from .routes.gateway_routes import gateway_bp
