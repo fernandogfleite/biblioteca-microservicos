@@ -45,7 +45,7 @@ graph TD
    source .venv/bin/activate
    pip install -r requirements.txt
    ```
-2. Create a `.env` using `.env.example` as a reference. **Set `JWT_SECRET` to a strong random value.**
+2. Create a `.env` using `.env.example` as a reference. **Set `JWT_SECRET` to a strong random value.** The `python-dotenv` package (included in `requirements.txt`) will load it automatically on startup.
 3. Run each service in a separate terminal:
    ```bash
    python -m servico_catalogo.app
@@ -57,6 +57,7 @@ graph TD
 4. Run the frontend:
    ```bash
    cd frontend
+   cp .env.example .env.local   # set API_GATEWAY_URL=http://localhost:5000
    npm install
    npm run dev
    ```
@@ -66,8 +67,7 @@ graph TD
 1. Push the repository to GitHub.
 2. In Render, create a new Blueprint using `render.yaml`.
 3. **Set the `JWT_SECRET` environment variable** (marked `sync: false`) in the Render dashboard for both `api-gateway` and `user-service`. Use the same strong random string for both.
-4. Update the `USER_SERVICE_URL` values in `render.yaml` with the actual deployed URL of `user-service` once it is created.
-5. Confirm all inter-service URLs and `CORS_ORIGINS`.
+4. Confirm all inter-service URLs and `CORS_ORIGINS` are correct (all URLs in `render.yaml` are already set).
 
 ### Render start commands
 

@@ -178,24 +178,6 @@ pytest
 
 Consulte [DEPLOYMENT.md](DEPLOYMENT.md) para instrucoes completas.
 
-
-## Visao Geral da Arquitetura
-
-1. **API Gateway (5000)**: ponto de entrada unico e roteamento das requisicoes.
-2. **Servico de Catalogo (5001)**: cadastro e consulta de livros.
-3. **Servico de Emprestimos (5002)**: registro e devolucao de emprestimos.
-4. **Servico de Recomendacao (5003)**: filtragem de livros por categoria com base no catalogo.
-5. **Frontend**: aplicacao Next.js para interface web robusta e integracao via API Gateway.
-
-```mermaid
-graph TD
-  UI[Frontend] -->|HTTP| GW[API Gateway]
-  GW -->|HTTP| CAT[Servico de Catalogo]
-  GW -->|HTTP| LOAN[Servico de Emprestimos]
-  GW -->|HTTP| REC[Servico de Recomendacao]
-  REC -->|HTTP| CAT
-```
-
 ## Estrutura de Pastas
 
 ```
@@ -217,6 +199,11 @@ biblioteca-microservicos/
 │   ├── app.py
 │   ├── services.py
 │   └── routes.py
+├── servico_usuario/
+│   ├── app.py
+│   ├── models.py
+│   ├── services.py
+│   └── routes.py
 ├── frontend/
 │   ├── app/
 │   ├── lib/
@@ -224,8 +211,8 @@ biblioteca-microservicos/
 │   └── .env.example
 ├── tests/
 ├── requirements.txt
-├── README.md
-└── copilot-instructions.md
+├── render.yaml
+└── README.md
 ```
 
 ## Instalacao
@@ -248,6 +235,7 @@ Abra terminais separados e execute:
 python -m servico_catalogo.app
 python -m servico_emprestimos.app
 python -m servico_recomendacao.app
+python -m servico_usuario.app
 python -m api_gateway.app
 ```
 
