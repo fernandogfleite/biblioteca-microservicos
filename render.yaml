@@ -29,7 +29,7 @@ services:
       - key: RECOMMENDATION_SERVICE_URL
         value: https://recommendation-service-3fdd.onrender.com
       - key: USER_SERVICE_URL
-        value: https://user-service-xxxx.onrender.com
+        value: https://user-service-a1qq.onrender.com
       - key: JWT_SECRET
         sync: false
       - key: CORS_ORIGINS
