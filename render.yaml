@@ -63,7 +63,7 @@ services:
       - key: CATALOG_SERVICE_URL
         value: https://catalog-service-6auf.onrender.com
       - key: USER_SERVICE_URL
-        value: https://user-service-xxxx.onrender.com
+        value: https://user-service-a1qq.onrender.com
       - key: EMPRESTIMOS_DB_PATH
         value: /tmp/emprestimos.db
       - key: CORS_ORIGINS
@@ -98,5 +98,7 @@ services:
         value: /tmp/usuarios.db
       - key: JWT_SECRET
         sync: false
+      - key: CORS_ORIGINS
+        value: https://api-gateway-6t3z.onrender.com
       - key: CORS_ORIGINS
         value: https://api-gateway-6t3z.onrender.com,https://frontend-next-zst9.onrender.com
