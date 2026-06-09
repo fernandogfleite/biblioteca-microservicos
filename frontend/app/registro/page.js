@@ -14,6 +14,7 @@ export default function RegistroPage() {
     email: "",
     cpf: "",
     password: "",
+    role: "USER",
   });
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -106,6 +107,13 @@ export default function RegistroPage() {
                 autoComplete="new-password"
                 required
               />
+            </label>
+            <label>
+              Perfil
+              <select name="role" value={form.role} onChange={handleChange}>
+                <option value="USER">Usuário</option>
+                <option value="ADMIN">Administrador</option>
+              </select>
             </label>
             <button className="action-button" type="submit" disabled={busy}>
               {busy ? "Cadastrando..." : "Criar conta"}
