@@ -10,6 +10,8 @@ from .services import (
     cancel_reservation,
     create_loan,
     create_reservation,
+    get_loans_by_book,
+    get_loans_by_user,
     list_loans,
     list_open_loans,
     list_pending_reservations,
@@ -59,8 +61,9 @@ def criar_emprestimo():
     payload = request.get_json(silent=True) or {}
     db_path = current_app.config["DB_PATH"]
     catalog_url = current_app.config["CATALOG_SERVICE_URL"]
+    user_service_url = current_app.config.get("USER_SERVICE_URL", "")
     try:
-        loan = create_loan(db_path, payload, catalog_url)
+        loan = create_loan(db_path, payload, catalog_url, user_service_url)
     except ValueError as exc:
         return json_response(success=False, message=str(exc), status=400)
 
@@ -121,9 +124,10 @@ def criar_reserva():
     payload = request.get_json(silent=True) or {}
     db_path = current_app.config["DB_PATH"]
     catalog_url = current_app.config["CATALOG_SERVICE_URL"]
+    user_service_url = current_app.config.get("USER_SERVICE_URL", "")
 
     try:
-        reservation = create_reservation(db_path, payload, catalog_url)
+        reservation = create_reservation(db_path, payload, catalog_url, user_service_url)
     except ValueError as exc:
         return json_response(success=False, message=str(exc), status=400)
 
@@ -156,3 +160,23 @@ def cancelar_reserva():
         return json_response(success=False, message=message, status=status)
 
     return json_response(success=True, data=reservation.to_dict())
+
+
+# ── History endpoints ─────────────────────────────────────────────────────────
+
+
+@loan_bp.get("/emprestimos/usuario/<user_id>")
+def historico_por_usuario(user_id: str):
+    """Return complete loan history for a given user_id."""
+    db_path = current_app.config["DB_PATH"]
+    loans = [loan.to_dict() for loan in get_loans_by_user(db_path, user_id)]
+    return json_response(success=True, data=loans)
+
+
+@loan_bp.get("/emprestimos/livro/<livro_id>")
+def historico_por_livro(livro_id: str):
+    """Return complete loan history for a given book ID."""
+    db_path = current_app.config["DB_PATH"]
+    loans = [loan.to_dict() for loan in get_loans_by_book(db_path, livro_id)]
+    total = len(loans)
+    return json_response(success=True, data={"total": total, "emprestimos": loans})

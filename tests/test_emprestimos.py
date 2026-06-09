@@ -307,3 +307,134 @@ def test_duplicate_pending_reservation_fails(tmp_path, monkeypatch):
     assert second_response.status_code == 400
     assert second_payload["success"] is False
     assert second_payload["message"] == "Usuario ja possui reserva pendente para este livro."
+
+
+# ── Loan history tests ────────────────────────────────────────────────────────
+
+
+def test_loan_history_by_user_id(tmp_path, monkeypatch):
+    """Loans created with user_id are retrievable via the history endpoint."""
+    monkeypatch.setattr(
+        services,
+        "_fetch_book",
+        lambda catalog_url, book_id: {
+            "id": book_id,
+            "titulo": "Livro Historico",
+            "disponivel": True,
+        },
+    )
+    monkeypatch.setattr(
+        services, "_update_book_availability", lambda *args, **kwargs: None
+    )
+
+    app = create_app(
+        {"TESTING": True, "DB_PATH": str(tmp_path / "emprestimos.db")}
+    )
+    client = app.test_client()
+
+    user_id = "user-abc-123"
+    client.post(
+        "/emprestimos",
+        json={"user_id": user_id, "livro_id": "book-20"},
+    )
+
+    response = client.get(f"/emprestimos/usuario/{user_id}")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert len(payload["data"]) == 1
+    assert payload["data"][0]["user_id"] == user_id
+
+
+def test_loan_history_by_book_id(tmp_path, monkeypatch):
+    """All loans for a book (including returned) are returned by history endpoint."""
+    call_count = {"n": 0}
+
+    def mock_fetch_book(catalog_url, book_id):
+        call_count["n"] += 1
+        return {"id": book_id, "titulo": "Livro Hist", "disponivel": True}
+
+    monkeypatch.setattr(services, "_fetch_book", mock_fetch_book)
+    monkeypatch.setattr(
+        services, "_update_book_availability", lambda *args, **kwargs: None
+    )
+
+    app = create_app(
+        {"TESTING": True, "DB_PATH": str(tmp_path / "emprestimos.db")}
+    )
+    client = app.test_client()
+
+    book_id = "book-hist-1"
+
+    r1 = client.post("/emprestimos", json={"nome_usuario": "Alice", "livro_id": book_id})
+    loan_id = r1.get_json()["data"]["id"]
+    client.post("/devolucoes", json={"emprestimo_id": loan_id})
+
+    client.post("/emprestimos", json={"nome_usuario": "Bob", "livro_id": book_id})
+
+    response = client.get(f"/emprestimos/livro/{book_id}")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert payload["data"]["total"] == 2
+
+
+def test_loan_includes_dates(tmp_path, monkeypatch):
+    """Loan records include data_emprestimo; data_devolucao is set after return."""
+    monkeypatch.setattr(
+        services,
+        "_fetch_book",
+        lambda catalog_url, book_id: {"id": book_id, "titulo": "Livro Data", "disponivel": True},
+    )
+    monkeypatch.setattr(
+        services, "_update_book_availability", lambda *args, **kwargs: None
+    )
+
+    app = create_app(
+        {"TESTING": True, "DB_PATH": str(tmp_path / "emprestimos.db")}
+    )
+    client = app.test_client()
+
+    create_response = client.post(
+        "/emprestimos",
+        json={"nome_usuario": "Fia", "livro_id": "book-date"},
+    )
+    loan = create_response.get_json()["data"]
+
+    assert loan["data_emprestimo"] is not None
+    assert loan["data_devolucao"] is None
+
+    return_response = client.post("/devolucoes", json={"emprestimo_id": loan["id"]})
+    returned_loan = return_response.get_json()["data"]
+
+    assert returned_loan["data_devolucao"] is not None
+
+
+def test_loan_with_user_id_no_nome_required(tmp_path, monkeypatch):
+    """Creating a loan with user_id (no nome_usuario) should succeed."""
+    monkeypatch.setattr(
+        services,
+        "_fetch_book",
+        lambda catalog_url, book_id: {"id": book_id, "titulo": "Livro X", "disponivel": True},
+    )
+    monkeypatch.setattr(
+        services, "_update_book_availability", lambda *args, **kwargs: None
+    )
+
+    app = create_app(
+        {"TESTING": True, "DB_PATH": str(tmp_path / "emprestimos.db")}
+    )
+    client = app.test_client()
+
+    response = client.post(
+        "/emprestimos",
+        json={"user_id": "uid-42", "livro_id": "book-x"},
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 201
+    assert payload["success"] is True
+    assert payload["data"]["user_id"] == "uid-42"
+

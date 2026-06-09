@@ -42,6 +42,10 @@ def create_app(config: Dict[str, Any] | None = None) -> Flask:
         "CATALOG_SERVICE_URL",
         os.getenv("CATALOGO_SERVICE_URL", "http://localhost:5001"),
     )
+    app.config["USER_SERVICE_URL"] = os.getenv(
+        "USER_SERVICE_URL",
+        os.getenv("USUARIOS_SERVICE_URL", "http://localhost:5004"),
+    )
 
     if config:
         app.config.update(config)

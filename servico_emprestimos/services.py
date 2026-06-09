@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -19,6 +20,10 @@ STATUS_RESERVA_CANCELADA = "CANCELADA"
 REQUIRED_FIELDS = ("nome_usuario", "livro_id")
 
 
+def _now_utc() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+
 def init_db(db_path: str) -> None:
     """Create the database schema if it does not exist."""
     with sqlite3.connect(db_path) as conn:
@@ -28,7 +33,10 @@ def init_db(db_path: str) -> None:
                 nome_usuario TEXT NOT NULL,
                 livro_id TEXT NOT NULL,
                 livro_titulo TEXT NOT NULL DEFAULT '',
-                status TEXT NOT NULL
+                status TEXT NOT NULL,
+                user_id TEXT,
+                data_emprestimo TEXT,
+                data_devolucao TEXT
             )
             """)
 
@@ -39,6 +47,12 @@ def init_db(db_path: str) -> None:
             conn.execute(
                 "ALTER TABLE emprestimos ADD COLUMN livro_titulo TEXT NOT NULL DEFAULT ''"
             )
+        if "user_id" not in columns:
+            conn.execute("ALTER TABLE emprestimos ADD COLUMN user_id TEXT")
+        if "data_emprestimo" not in columns:
+            conn.execute("ALTER TABLE emprestimos ADD COLUMN data_emprestimo TEXT")
+        if "data_devolucao" not in columns:
+            conn.execute("ALTER TABLE emprestimos ADD COLUMN data_devolucao TEXT")
 
         conn.execute("""
             CREATE TABLE IF NOT EXISTS reservas (
@@ -47,9 +61,16 @@ def init_db(db_path: str) -> None:
                 livro_id TEXT NOT NULL,
                 livro_titulo TEXT NOT NULL,
                 status TEXT NOT NULL,
-                criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                user_id TEXT
             )
             """)
+
+        reserva_columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(reservas)").fetchall()
+        }
+        if "user_id" not in reserva_columns:
+            conn.execute("ALTER TABLE reservas ADD COLUMN user_id TEXT")
 
         conn.commit()
 
@@ -61,34 +82,47 @@ def _get_connection(db_path: str) -> sqlite3.Connection:
 
 
 def validate_loan_payload(payload: Dict[str, Any]) -> Optional[str]:
-    """Validate required loan fields."""
-    for field in REQUIRED_FIELDS:
-        value = payload.get(field)
-        if value is None or str(value).strip() == "":
-            return f"Campo obrigatorio ausente ou vazio: {field}"
+    """Validate required loan fields (accepts nome_usuario or user_id)."""
+    livro_id = payload.get("livro_id")
+    if livro_id is None or str(livro_id).strip() == "":
+        return "Campo obrigatorio ausente ou vazio: livro_id"
+
+    has_nome = bool(payload.get("nome_usuario", "").strip() if payload.get("nome_usuario") else "")
+    has_user = bool(payload.get("user_id", "").strip() if payload.get("user_id") else "")
+    if not has_nome and not has_user:
+        return "Campo obrigatorio ausente ou vazio: nome_usuario ou user_id"
     return None
 
 
 def validate_reservation_payload(payload: Dict[str, Any]) -> Optional[str]:
-    """Validate required reservation fields."""
-    for field in REQUIRED_FIELDS:
-        value = payload.get(field)
-        if value is None or str(value).strip() == "":
-            return f"Campo obrigatorio ausente ou vazio: {field}"
+    """Validate required reservation fields (accepts nome_usuario or user_id)."""
+    livro_id = payload.get("livro_id")
+    if livro_id is None or str(livro_id).strip() == "":
+        return "Campo obrigatorio ausente ou vazio: livro_id"
+
+    has_nome = bool(payload.get("nome_usuario", "").strip() if payload.get("nome_usuario") else "")
+    has_user = bool(payload.get("user_id", "").strip() if payload.get("user_id") else "")
+    if not has_nome and not has_user:
+        return "Campo obrigatorio ausente ou vazio: nome_usuario ou user_id"
     return None
 
 
 def _row_to_loan(row: sqlite3.Row) -> Loan:
+    keys = row.keys()
     return Loan(
         id=row["id"],
         nome_usuario=row["nome_usuario"],
         livro_id=row["livro_id"],
         livro_titulo=row["livro_titulo"],
         status=row["status"],
+        user_id=row["user_id"] if "user_id" in keys else None,
+        data_emprestimo=row["data_emprestimo"] if "data_emprestimo" in keys else None,
+        data_devolucao=row["data_devolucao"] if "data_devolucao" in keys else None,
     )
 
 
 def _row_to_reservation(row: sqlite3.Row) -> Reservation:
+    keys = row.keys()
     return Reservation(
         id=row["id"],
         nome_usuario=row["nome_usuario"],
@@ -96,6 +130,7 @@ def _row_to_reservation(row: sqlite3.Row) -> Reservation:
         livro_titulo=row["livro_titulo"],
         status=row["status"],
         criado_em=row["criado_em"],
+        user_id=row["user_id"] if "user_id" in keys else None,
     )
 
 
@@ -123,6 +158,26 @@ def get_loan(db_path: str, loan_id: str) -> Optional[Loan]:
             "SELECT * FROM emprestimos WHERE id = ?", (loan_id,)
         ).fetchone()
     return _row_to_loan(row) if row else None
+
+
+def get_loans_by_user(db_path: str, user_id: str) -> List[Loan]:
+    """Return loan history for a given user_id."""
+    with _get_connection(db_path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM emprestimos WHERE user_id = ? ORDER BY data_emprestimo DESC, id ASC",
+            (user_id,),
+        ).fetchall()
+    return [_row_to_loan(row) for row in rows]
+
+
+def get_loans_by_book(db_path: str, livro_id: str) -> List[Loan]:
+    """Return all loans (history) for a given book ID."""
+    with _get_connection(db_path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM emprestimos WHERE livro_id = ? ORDER BY data_emprestimo DESC, id ASC",
+            (livro_id,),
+        ).fetchall()
+    return [_row_to_loan(row) for row in rows]
 
 
 def list_reservations(db_path: str) -> List[Reservation]:
@@ -200,16 +255,37 @@ def _update_book_availability(catalog_url: str, book_id: str, disponivel: bool) 
         )
 
 
-def create_loan(db_path: str, payload: Dict[str, Any], catalog_url: str) -> Loan:
+def _fetch_user_name(user_service_url: str, user_id: str) -> str:
+    """Fetch a user's full_name from the user service. Returns the user_id on failure."""
+    try:
+        response = requests.get(f"{user_service_url}/usuarios/{user_id}", timeout=4)
+    except requests.RequestException:
+        return user_id
+
+    if not response.ok:
+        return user_id
+
+    payload = response.json()
+    data = payload.get("data", {})
+    return str(data.get("full_name", user_id))
+
+
+def create_loan(db_path: str, payload: Dict[str, Any], catalog_url: str, user_service_url: str = "") -> Loan:
     """Create a new loan with status EMPRESTADO."""
     error = validate_loan_payload(payload)
     if error:
         raise ValueError(error)
 
     loan_id = str(uuid.uuid4())
-    nome_usuario = str(payload["nome_usuario"]).strip()
+    user_id: Optional[str] = str(payload.get("user_id", "")).strip() or None
     livro_id = str(payload["livro_id"]).strip()
     status = STATUS_EMPRESTADO
+    data_emprestimo = _now_utc()
+
+    if user_id:
+        nome_usuario = _fetch_user_name(user_service_url, user_id) if user_service_url else user_id
+    else:
+        nome_usuario = str(payload["nome_usuario"]).strip()
 
     book = _fetch_book(catalog_url, livro_id)
     livro_titulo = str(book.get("titulo", "")).strip()
@@ -221,10 +297,11 @@ def create_loan(db_path: str, payload: Dict[str, Any], catalog_url: str) -> Loan
     with _get_connection(db_path) as conn:
         conn.execute(
             """
-            INSERT INTO emprestimos (id, nome_usuario, livro_id, livro_titulo, status)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO emprestimos
+                (id, nome_usuario, livro_id, livro_titulo, status, user_id, data_emprestimo)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (loan_id, nome_usuario, livro_id, livro_titulo, status),
+            (loan_id, nome_usuario, livro_id, livro_titulo, status, user_id, data_emprestimo),
         )
         conn.commit()
 
@@ -242,11 +319,16 @@ def create_loan(db_path: str, payload: Dict[str, Any], catalog_url: str) -> Loan
         livro_id=livro_id,
         livro_titulo=livro_titulo,
         status=status,
+        user_id=user_id,
+        data_emprestimo=data_emprestimo,
+        data_devolucao=None,
     )
 
 
 def return_loan(db_path: str, loan_id: str, catalog_url: str) -> Loan:
     """Mark a loan as returned."""
+    data_devolucao = _now_utc()
+
     with _get_connection(db_path) as conn:
         row = conn.execute(
             "SELECT * FROM emprestimos WHERE id = ?", (loan_id,)
@@ -259,8 +341,8 @@ def return_loan(db_path: str, loan_id: str, catalog_url: str) -> Loan:
             raise ValueError("Emprestimo ja devolvido.")
 
         conn.execute(
-            "UPDATE emprestimos SET status = ? WHERE id = ?",
-            (STATUS_DEVOLVIDO, loan_id),
+            "UPDATE emprestimos SET status = ?, data_devolucao = ? WHERE id = ?",
+            (STATUS_DEVOLVIDO, data_devolucao, loan_id),
         )
         conn.commit()
 
@@ -269,7 +351,7 @@ def return_loan(db_path: str, loan_id: str, catalog_url: str) -> Loan:
     except ValueError:
         with _get_connection(db_path) as conn:
             conn.execute(
-                "UPDATE emprestimos SET status = ? WHERE id = ?",
+                "UPDATE emprestimos SET status = ?, data_devolucao = NULL WHERE id = ?",
                 (STATUS_EMPRESTADO, loan_id),
             )
             conn.commit()
@@ -281,11 +363,14 @@ def return_loan(db_path: str, loan_id: str, catalog_url: str) -> Loan:
         livro_id=loan.livro_id,
         livro_titulo=loan.livro_titulo,
         status=STATUS_DEVOLVIDO,
+        user_id=loan.user_id,
+        data_emprestimo=loan.data_emprestimo,
+        data_devolucao=data_devolucao,
     )
 
 
 def create_reservation(
-    db_path: str, payload: Dict[str, Any], catalog_url: str
+    db_path: str, payload: Dict[str, Any], catalog_url: str, user_service_url: str = ""
 ) -> Reservation:
     """Create a reservation for an unavailable book."""
     error = validate_reservation_payload(payload)
@@ -293,7 +378,13 @@ def create_reservation(
         raise ValueError(error)
 
     reservation_id = str(uuid.uuid4())
-    nome_usuario = str(payload["nome_usuario"]).strip()
+    user_id: Optional[str] = str(payload.get("user_id", "")).strip() or None
+
+    if user_id:
+        nome_usuario = _fetch_user_name(user_service_url, user_id) if user_service_url else user_id
+    else:
+        nome_usuario = str(payload["nome_usuario"]).strip()
+
     livro_id = str(payload["livro_id"]).strip()
 
     book = _fetch_book(catalog_url, livro_id)
@@ -320,8 +411,8 @@ def create_reservation(
 
         conn.execute(
             """
-            INSERT INTO reservas (id, nome_usuario, livro_id, livro_titulo, status)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO reservas (id, nome_usuario, livro_id, livro_titulo, status, user_id)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
                 reservation_id,
@@ -329,6 +420,7 @@ def create_reservation(
                 livro_id,
                 livro_titulo,
                 STATUS_RESERVA_PENDENTE,
+                user_id,
             ),
         )
         conn.commit()
@@ -365,3 +457,5 @@ def cancel_reservation(db_path: str, reservation_id: str) -> Reservation:
         ).fetchone()
 
     return _row_to_reservation(updated)
+
+
