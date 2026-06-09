@@ -37,12 +37,14 @@ async function proxyRequest(request, context) {
 
   const targetUrl = buildTargetUrl(context.params.path, request);
   const payload = await parseBody(request);
+  const authHeader = request.headers.get("authorization");
 
   try {
     const upstream = await fetch(targetUrl, {
       method: request.method,
       headers: {
         "Content-Type": "application/json",
+        ...(authHeader ? { Authorization: authHeader } : {}),
       },
       body: payload,
       cache: "no-store",
